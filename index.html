@@ -75,7 +75,7 @@ async function loadFiles(fileList){
         setStatus('圧縮ファイルを展開中: '+f.name);
         const zip=await JSZip.loadAsync(f);
         const entries=Object.values(zip.files)
-          .filter(x=>!x.dir && /\.(jpe?g)$/i.test(x.name))
+          .filter(x=>!x.dir && !x.name.startsWith('__MACOSX/') && !x.name.split('/').pop().startsWith('._') && /\.(jpe?g)$/i.test(x.name))
           .sort((a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true,sensitivity:'base'}));
         const names=entries.map(x=>x.name.toLowerCase());
         const duplicates=names.length-new Set(names).size;
