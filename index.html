@@ -168,7 +168,15 @@ function render(){
   $('count').textContent=items.length?`${idx+1} / ${items.length}`:'0 / 0';
   if(!items.length){viewer.innerHTML='<small>画像・ZIP・CBZ・PDFを選択してください</small>';return}
   const item=items[idx];
-  if($('layout').value==='scroll')
+  if($('layout').value==='scroll'){
+  viewer.style.flexDirection='column';
+  items.forEach(page=>{
+    if(page.type==='image'){
+      viewer.appendChild(showImage(page,'scroll'));
+    }
+  });
+  return;
+}
   if(item.type==='pdf'){
     const frame=document.createElement('iframe');frame.id='pdfFrame';frame.title=item.name;
     frame.src=URL.createObjectURL(item.blob);urls.push(frame.src);viewer.appendChild(frame);return
