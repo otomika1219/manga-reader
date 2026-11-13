@@ -37,7 +37,9 @@ footer{flex-shrink:0}</style>
 <input id="files" type="file" multiple accept="image/*,.zip,.cbz,.pdf">
 <button id="prev">◀ 前へ</button><button id="next">次へ ▶</button>
 <select id="direction" aria-label="読む方向"><option value="rtl">右開き</option><option value="ltr">左開き</option></select>
-<select id="layout" aria-label="ページ表示"><option value="single">1ページ</option><option value="spread">見開き</option></select>
+
+<select id="layout" aria-label="ページ表示"><option value="single">1ページ</option><option value="spread">見開き</option><option value="scroll">スクロール</option></select>
+
 <button id="zoomOut">−</button><button id="zoomIn">＋</button>
 </div>
 <div id="status">ZIP読み込み時は画像数と重複候補を表示します。</div>
