@@ -59,7 +59,8 @@ function isArchive(f){return /\.(zip|cbz)$/i.test(f.name)}
 function isPdf(f){return /\.pdf$/i.test(f.name)||f.type==='application/pdf'}
 function natural(a,b){return a.localeCompare(b,undefined,{numeric:true,sensitivity:'base'})}
 function safeName(s){return (s||'無題').replace(/\.[^.]+$/,'')}
-function makeBook(name,type,items,sourceFiles){return {id:uid(),name,type,items,sourceFiles:sourceFiles||[],coverIndex:0,page:0,direction:'rtl',layout:'single',bookmarks:[],lastRead:0,added:Date.now(),total:items.length,progress:0}}
+function asBlob(f){return new Blob([f],{type:f.type||'application/octet-stream'})}
+function makeBook(name,type,items,sourceFiles){return {id:uid(),name,type,items,coverIndex:0,page:0,direction:'rtl',layout:'single',bookmarks:[],lastRead:0,added:Date.now(),total:items.length,progress:0}}
 async function filesToBooks(fileList){
  const fs=Array.from(fileList||[]);if(!fs.length)return [];
  const out=[], imageFiles=fs.filter(isImage), archives=fs.filter(isArchive), pdfs=fs.filter(isPdf), unsupported=fs.filter(f=>!isImage(f)&&!isArchive(f)&&!isPdf(f));
@@ -68,17 +69,17 @@ async function filesToBooks(fileList){
  if(folderMode){
    const groups=new Map();
    imageFiles.forEach(f=>{const path=f.webkitRelativePath||f.name;const parts=path.split('/');const group=parts.length>2?parts.slice(0,-1).join('/'):parts[0]||'画像';if(!groups.has(group))groups.set(group,[]);groups.get(group).push(f)});
-   for(const [name,arr] of groups){arr.sort((a,b)=>natural(a.name,b.name));out.push(makeBook(name.split('/').pop(),'images',arr.map(f=>({name:f.name,blob:f})),arr))}
- } else if(imageFiles.length){imageFiles.sort((a,b)=>natural(a.name,b.name));out.push(makeBook(imageFiles.length===1?safeName(imageFiles[0].name):'画像まとめ','images',imageFiles.map(f=>({name:f.name,blob:f})),imageFiles))}
- for(const f of archives){out.push(makeBook(safeName(f.name),'archive',[{name:f.name,blob:f}], [f]))}
- for(const f of pdfs){out.push(makeBook(safeName(f.name),'pdf',[{name:f.name,blob:f}], [f]))}
+   for(const [name,arr] of groups){arr.sort((a,b)=>natural(a.name,b.name));out.push(makeBook(name.split('/').pop(),'images',arr.map(f=>({name:f.name,blob:asBlob(f)})))}
+ } else if(imageFiles.length){imageFiles.sort((a,b)=>natural(a.name,b.name));out.push(makeBook(imageFiles.length===1?safeName(imageFiles[0].name):'画像まとめ','images',imageFiles.map(f=>({name:f.name,blob:asBlob(f)})))}
+ for(const f of archives){out.push(makeBook(safeName(f.name),'archive',[{name:f.name,blob:asBlob(f)}]))}
+ for(const f of pdfs){out.push(makeBook(safeName(f.name),'pdf',[{name:f.name,blob:asBlob(f)}]))}
  if(unsupported.length)notify('未対応のファイルを'+unsupported.length+'件スキップしました');
  return out;
 }
 async function importFiles(list){
  try{notify('漫画を取り込んでいます…');const incoming=await filesToBooks(list);if(!incoming.length){notify('対応ファイルが見つかりません');return}
  for(const b of incoming){await dbPut(b)}await refresh();notify(incoming.length+'冊を本棚に追加しました')}
- catch(e){console.error(e);notify('読み込みに失敗しました。空き容量やファイル形式を確認してください')}
+ catch(e){console.error('漫画の保存に失敗:',e);const detail=(e&&((e.name?e.name+': ':'')+e.message))||'原因不明';notify('保存失敗：'+detail.slice(0,90))}
 }
 function coverURL(b){const it=b.items?.[b.coverIndex||0];if(!it)return '';if(it.blob)return URL.createObjectURL(it.blob);return ''}
 function card(b){const el=document.createElement('div');el.className='book';const c=document.createElement('div');c.className='cover';const url=coverURL(b);if(url){const im=document.createElement('img');im.src=url;im.alt='';c.appendChild(im)}else{const p=document.createElement('div');p.className='placeholder';p.textContent=b.name;c.appendChild(p)}const n=document.createElement('div');n.className='bookname';n.textContent=b.name;const m=document.createElement('div');m.className='bookmeta';m.textContent=(b.total||b.items?.length||'—')+'ページ';const pr=document.createElement('div');pr.className='progress';const sp=document.createElement('span');sp.style.width=Math.max(0,Math.min(100,b.progress||0))+'%';pr.appendChild(sp);el.append(c,n,m,pr);el.addEventListener('click',()=>openBook(b.id));el.addEventListener('contextmenu',e=>{e.preventDefault();bookOptions(b)});el.addEventListener('click',()=>{if(window.__lastTap&&Date.now()-window.__lastTap<400){bookOptions(b)}window.__lastTap=Date.now()});return el}
