@@ -46,13 +46,14 @@ window.__pdfjs=pdfjsLib;
 'use strict';
 const $=id=>document.getElementById(id);
 const DB_NAME='manga-shelf-db-v1', STORE='books';
-let db, books=[], activeBook=null, page=0, pages=[], zoom=1, pdfDoc=null, activeTab='shelf', toastTimer;
+let db, dbReady=null, books=[], activeBook=null, page=0, pages=[], zoom=1, pdfDoc=null, activeTab='shelf', toastTimer;
 const state={direction:'rtl',layout:'single'};
 function notify(s){$('toast').textContent=s;$('toast').classList.remove('hidden');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').classList.add('hidden'),2600)}
-function openDB(){return new Promise((resolve,reject)=>{const req=indexedDB.open(DB_NAME,1);req.onupgradeneeded=()=>req.result.createObjectStore(STORE,{keyPath:'id'});req.onsuccess=()=>{db=req.result;resolve()};req.onerror=()=>reject(req.error)})}
-function dbAll(){return new Promise((resolve,reject)=>{const r=db.transaction(STORE).objectStore(STORE).getAll();r.onsuccess=()=>resolve(r.result||[]);r.onerror=()=>reject(r.error)})}
-function dbPut(book){return new Promise((resolve,reject)=>{const r=db.transaction(STORE,'readwrite').objectStore(STORE).put(book);r.onsuccess=resolve;r.onerror=()=>reject(r.error)})}
-function dbDelete(id){return new Promise((resolve,reject)=>{const r=db.transaction(STORE,'readwrite').objectStore(STORE).delete(id);r.onsuccess=resolve;r.onerror=()=>reject(r.error)})}
+function openDB(){return new Promise((resolve,reject)=>{try{const req=indexedDB.open(DB_NAME,1);req.onupgradeneeded=()=>{if(!req.result.objectStoreNames.contains(STORE))req.result.createObjectStore(STORE,{keyPath:'id'})};req.onsuccess=()=>{db=req.result;db.onversionchange=()=>db.close();resolve(db)};req.onerror=()=>reject(req.error||new Error('IndexedDBを開けません'));req.onblocked=()=>reject(new Error('データベースが別のタブで使用中です'))}catch(e){reject(e)}})}
+function ensureDB(){if(db)return Promise.resolve(db);if(!dbReady)dbReady=openDB().catch(e=>{dbReady=null;throw e});return dbReady}
+async function dbAll(){await ensureDB();return new Promise((resolve,reject)=>{const r=db.transaction(STORE).objectStore(STORE).getAll();r.onsuccess=()=>resolve(r.result||[]);r.onerror=()=>reject(r.error)})}
+async function dbPut(book){await ensureDB();return new Promise((resolve,reject)=>{const r=db.transaction(STORE,'readwrite').objectStore(STORE).put(book);r.onsuccess=resolve;r.onerror=()=>reject(r.error)})}
+async function dbDelete(id){await ensureDB();return new Promise((resolve,reject)=>{const r=db.transaction(STORE,'readwrite').objectStore(STORE).delete(id);r.onsuccess=resolve;r.onerror=()=>reject(r.error)})}
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,8)}
 function isImage(f){return f.type.startsWith('image/')||/\.(jpe?g|png|gif|webp|avif|bmp)$/i.test(f.name)}
 function isArchive(f){return /\.(zip|cbz)$/i.test(f.name)}
@@ -157,7 +158,7 @@ document.querySelectorAll('.bottomnav button').forEach(btn=>btn.onclick=()=>{act
 $('modalBack').addEventListener('click',e=>{if(e.target===$('modalBack'))hideModal()});
 let touchX=null;$('readerBody').addEventListener('touchstart',e=>{touchX=e.touches[0].clientX},{passive:true});$('readerBody').addEventListener('touchend',e=>{if(state.layout==='scroll'||touchX===null)return;const dx=e.changedTouches[0].clientX-touchX;touchX=null;if(Math.abs(dx)>55){const forward=state.direction==='rtl'?dx<0:dx>0;movePage(forward?(state.layout==='spread'?2:1):-(state.layout==='spread'?2:1))}},{passive:true});
 window.addEventListener('keydown',e=>{if($('reader').classList.contains('hidden'))return;if(e.key==='ArrowRight')movePage(state.direction==='rtl'?-1:1);if(e.key==='ArrowLeft')movePage(state.direction==='rtl'?1:-1);if(e.key==='Escape')closeReader()});
-openDB().then(refresh).catch(e=>{console.error(e);notify('端末内保存を開始できませんでした')});
+ensureDB().then(refresh).catch(e=>{console.error(e);notify('端末内保存を開始できませんでした：'+(e.message||e))});
 if('serviceWorker' in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('./service-worker.js').catch(console.warn);
 })();
 </script>
