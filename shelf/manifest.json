@@ -1,0 +1,19 @@
+{
+  "name": "漫画本棚",
+  "short_name": "漫画本棚",
+  "description": "端末内保存を基本にした無料の漫画リーダー",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#111111",
+  "theme_color": "#171717",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

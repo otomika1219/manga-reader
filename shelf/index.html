@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#171717">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="漫画本棚">
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" href="./icon.svg" type="image/svg+xml">
+<title>漫画本棚</title>
+<style>
+:root{color-scheme:dark;--bg:#111;--panel:#1d1d1f;--panel2:#29292c;--text:#f5f5f7;--muted:#aaa;--accent:#e7b85c;--line:#38383b}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}button,input,select{font:inherit}button{border:0;border-radius:12px;background:var(--panel2);color:var(--text);padding:11px 14px;cursor:pointer}button.primary{background:var(--accent);color:#171717;font-weight:700}button:disabled{opacity:.4}header{position:sticky;top:0;z-index:5;background:#151515f2;backdrop-filter:blur(12px);border-bottom:1px solid var(--line);padding:calc(env(safe-area-inset-top) + 10px) 14px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px}header h1{font-size:20px;margin:0}header small{color:var(--muted)}main{padding:14px 14px calc(90px + env(safe-area-inset-bottom));max-width:1000px;margin:auto}.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}.toolbar button{flex:1;min-width:100px}.sectionhead{display:flex;justify-content:space-between;align-items:center;margin:18px 0 10px}.sectionhead h2{font-size:17px;margin:0}.sectionhead span{font-size:12px;color:var(--muted)}.shelf{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.book{min-width:0;position:relative;cursor:pointer}.cover{width:100%;aspect-ratio:3/4.2;background:linear-gradient(135deg,#373737,#202020);border-radius:8px;overflow:hidden;border:1px solid #414141;box-shadow:0 5px 12px #0008;display:flex;align-items:center;justify-content:center;color:#ddd;text-align:center}.cover img{width:100%;height:100%;object-fit:cover}.cover .placeholder{padding:8px;font-weight:700;overflow-wrap:anywhere}.bookname{font-size:13px;margin-top:8px;line-height:1.35;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.bookmeta{font-size:11px;color:var(--muted);margin-top:4px}.progress{height:3px;background:#444;margin-top:7px;border-radius:4px;overflow:hidden}.progress span{display:block;height:100%;background:var(--accent)}.empty{padding:34px 18px;text-align:center;color:var(--muted);background:var(--panel);border-radius:18px;line-height:1.7}.empty strong{color:var(--text);display:block;font-size:17px;margin-bottom:6px}.hidden{display:none!important}.notice{font-size:12px;color:var(--muted);line-height:1.6;margin:10px 0}.status{padding:10px 12px;background:#29251a;border:1px solid #5b4a25;color:#f0dba8;border-radius:10px;font-size:12px;line-height:1.5;margin-bottom:12px}.bottomnav{position:fixed;z-index:7;bottom:0;left:0;right:0;padding:8px 12px calc(8px + env(safe-area-inset-bottom));background:#171717f5;border-top:1px solid var(--line);display:flex;justify-content:space-around;gap:6px}.bottomnav button{background:transparent;flex:1;font-size:12px;padding:8px 4px}.bottomnav button.active{color:var(--accent)}.reader{position:fixed;inset:0;z-index:20;background:#050505;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top)}.readerhead,.readerfoot{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;background:#171717;flex-shrink:0}.readerhead .booktitle{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px}.readerhead button,.readerfoot button{padding:9px 11px}.readerbody{flex:1;min-height:0;overflow:auto;display:flex;align-items:center;justify-content:center;touch-action:pan-y}.readerbody.scrollmode{display:block;text-align:center}.pageimg{max-width:100%;max-height:100%;object-fit:contain;user-select:none;-webkit-user-drag:none}.spread{display:flex;align-items:center;justify-content:center;width:100%;height:100%;gap:1px}.spread img{width:50%;max-height:100%;object-fit:contain}.readerbody.scrollmode .pageimg{display:block;width:100%;height:auto;max-height:none;margin:0 auto 3px}.readerfoot{flex-wrap:wrap;justify-content:center}.readerfoot .counter{min-width:78px;text-align:center;font-size:12px;color:#ddd}.readerfoot input[type=range]{width:100%;accent-color:var(--accent)}.readeropts{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}.readeropts select{background:var(--panel2);color:var(--text);border:0;border-radius:10px;padding:8px;max-width:45%}.modalback{position:fixed;inset:0;z-index:30;background:#000a;display:flex;align-items:flex-end;justify-content:center}.modal{background:#202022;border-radius:20px 20px 0 0;padding:20px 18px calc(22px + env(safe-area-inset-bottom));width:100%;max-width:650px;max-height:85vh;overflow:auto}.modal h2{margin:0 0 14px;font-size:19px}.modalrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.modalrow button{flex:1}.field{display:block;margin:12px 0;font-size:13px;color:var(--muted)}.field input,.field select{display:block;margin-top:6px;width:100%;background:#111;color:white;border:1px solid #444;border-radius:10px;padding:11px}.bookmarkrow{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line);gap:8px}.toast{position:fixed;z-index:40;bottom:90px;left:50%;transform:translateX(-50%);background:#eee;color:#111;padding:10px 15px;border-radius:20px;max-width:90%;font-size:13px;box-shadow:0 4px 20px #0008}.reader .readerbody canvas{max-width:100%;max-height:100%;object-fit:contain}.readerbody.scrollmode canvas{display:block;width:100%;height:auto;margin:0 auto 3px}
+@media(min-width:650px){.shelf{grid-template-columns:repeat(5,minmax(0,1fr))}main{padding-left:24px;padding-right:24px}.cover{aspect-ratio:3/4}}
+</style>
+</head>
+<body>
+<header><div><h1>📚 漫画本棚</h1><small id="bookcount">端末内に保存</small></div><button id="settingsBtn">設定</button></header>
+<main id="home">
+<div id="offlineStatus" class="status">端末内保存を基本にしています。初回はインターネット接続中にこのページを開いてください。追加した漫画はこのブラウザ内に保存されます。</div>
+<div class="toolbar"><button class="primary" id="addFiles">＋ 漫画を追加</button><button id="addFolder">▤ フォルダ一括追加</button><button id="continueBtn">▶ 続きから読む</button></div>
+<input id="fileInput" type="file" multiple accept="image/*,.zip,.cbz,.pdf" class="hidden">
+<input id="folderInput" type="file" multiple webkitdirectory accept="image/*,.zip,.cbz,.pdf" class="hidden">
+<section id="continueSection" class="hidden"><div class="sectionhead"><h2>続きを読む</h2><span>前回の続き</span></div><div id="continueShelf" class="shelf"></div></section>
+<section><div class="sectionhead"><h2>本棚</h2><span id="sortLabel">最近追加した順</span></div><div id="shelf" class="shelf"></div><div id="empty" class="empty"><strong>本棚はまだ空です</strong>「漫画を追加」から画像・ZIP/CBZ・PDFを選んでください。<br>選んだデータはこの端末のブラウザ内に保存します。</div></section>
+<section id="historySection" class="hidden"><div class="sectionhead"><h2>読書履歴</h2><span>最近読んだ順</span></div><div id="historyShelf" class="shelf"></div></section>
+</main>
+<nav class="bottomnav"><button class="active" data-tab="shelf">▦ 本棚</button><button data-tab="history">◷ 履歴</button><button data-tab="bookmarks">🔖 しおり</button></nav>
+<div id="reader" class="reader hidden">
+<div class="readerhead"><button id="closeReader">‹ 本棚</button><div class="booktitle" id="readerTitle"></div><button id="bookmarkBtn">🔖</button></div>
+<div id="readerBody" class="readerbody"></div>
+<div class="readerfoot"><button id="prevPage">‹ 前へ</button><span class="counter" id="pageCounter">0 / 0</span><button id="nextPage">次へ ›</button><input id="pageSlider" type="range" min="0" max="0" value="0" aria-label="ページ移動"><div class="readeropts"><select id="direction"><option value="rtl">右開き</option><option value="ltr">左開き</option></select><select id="layout"><option value="single">1ページ</option><option value="spread">見開き</option><option value="scroll">縦スクロール</option></select><button id="zoomOut">－</button><button id="zoomIn">＋</button><button id="readerMenu">その他</button></div></div>
+</div>
+<div id="modalBack" class="modalback hidden"><div class="modal" id="modal"></div></div><div id="toast" class="toast hidden"></div>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs" type="module"></script>
+<script type="module">
+import * as pdfjsLib from 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs';
+pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs';
+window.__pdfjs=pdfjsLib;
+</script>
+<script>
+(()=> {
+'use strict';
+const $=id=>document.getElementById(id);
+const DB_NAME='manga-shelf-db-v1', STORE='books';
+let db, books=[], activeBook=null, page=0, pages=[], zoom=1, pdfDoc=null, activeTab='shelf', toastTimer;
+const state={direction:'rtl',layout:'single'};
+function notify(s){$('toast').textContent=s;$('toast').classList.remove('hidden');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').classList.add('hidden'),2600)}
+function openDB(){return new Promise((resolve,reject)=>{const req=indexedDB.open(DB_NAME,1);req.onupgradeneeded=()=>req.result.createObjectStore(STORE,{keyPath:'id'});req.onsuccess=()=>{db=req.result;resolve()};req.onerror=()=>reject(req.error)})}
+function dbAll(){return new Promise((resolve,reject)=>{const r=db.transaction(STORE).objectStore(STORE).getAll();r.onsuccess=()=>resolve(r.result||[]);r.onerror=()=>reject(r.error)})}
+function dbPut(book){return new Promise((resolve,reject)=>{const r=db.transaction(STORE,'readwrite').objectStore(STORE).put(book);r.onsuccess=resolve;r.onerror=()=>reject(r.error)})}
+function dbDelete(id){return new Promise((resolve,reject)=>{const r=db.transaction(STORE,'readwrite').objectStore(STORE).delete(id);r.onsuccess=resolve;r.onerror=()=>reject(r.error)})}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,8)}
+function isImage(f){return f.type.startsWith('image/')||/\.(jpe?g|png|gif|webp|avif|bmp)$/i.test(f.name)}
+function isArchive(f){return /\.(zip|cbz)$/i.test(f.name)}
+function isPdf(f){return /\.pdf$/i.test(f.name)||f.type==='application/pdf'}
+function natural(a,b){return a.localeCompare(b,undefined,{numeric:true,sensitivity:'base'})}
+function safeName(s){return (s||'無題').replace(/\.[^.]+$/,'')}
+function makeBook(name,type,items,sourceFiles){return {id:uid(),name,type,items,sourceFiles:sourceFiles||[],coverIndex:0,page:0,direction:'rtl',layout:'single',bookmarks:[],lastRead:0,added:Date.now(),total:items.length,progress:0}}
+async function filesToBooks(fileList){
+ const fs=Array.from(fileList||[]);if(!fs.length)return [];
+ const out=[], imageFiles=fs.filter(isImage), archives=fs.filter(isArchive), pdfs=fs.filter(isPdf), unsupported=fs.filter(f=>!isImage(f)&&!isArchive(f)&&!isPdf(f));
+ // Images selected together are one book; folder import splits by folder path.
+ const folderMode=fs.some(f=>f.webkitRelativePath);
+ if(folderMode){
+   const groups=new Map();
+   imageFiles.forEach(f=>{const path=f.webkitRelativePath||f.name;const parts=path.split('/');const group=parts.length>2?parts.slice(0,-1).join('/'):parts[0]||'画像';if(!groups.has(group))groups.set(group,[]);groups.get(group).push(f)});
+   for(const [name,arr] of groups){arr.sort((a,b)=>natural(a.name,b.name));out.push(makeBook(name.split('/').pop(),'images',arr.map(f=>({name:f.name,blob:f})),arr))}
+ } else if(imageFiles.length){imageFiles.sort((a,b)=>natural(a.name,b.name));out.push(makeBook(imageFiles.length===1?safeName(imageFiles[0].name):'画像まとめ','images',imageFiles.map(f=>({name:f.name,blob:f})),imageFiles))}
+ for(const f of archives){out.push(makeBook(safeName(f.name),'archive',[{name:f.name,blob:f}], [f]))}
+ for(const f of pdfs){out.push(makeBook(safeName(f.name),'pdf',[{name:f.name,blob:f}], [f]))}
+ if(unsupported.length)notify('未対応のファイルを'+unsupported.length+'件スキップしました');
+ return out;
+}
+async function importFiles(list){
+ try{notify('漫画を取り込んでいます…');const incoming=await filesToBooks(list);if(!incoming.length){notify('対応ファイルが見つかりません');return}
+ for(const b of incoming){await dbPut(b)}await refresh();notify(incoming.length+'冊を本棚に追加しました')}
+ catch(e){console.error(e);notify('読み込みに失敗しました。空き容量やファイル形式を確認してください')}
+}
+function coverURL(b){const it=b.items?.[b.coverIndex||0];if(!it)return '';if(it.blob)return URL.createObjectURL(it.blob);return ''}
+function card(b){const el=document.createElement('div');el.className='book';const c=document.createElement('div');c.className='cover';const url=coverURL(b);if(url){const im=document.createElement('img');im.src=url;im.alt='';c.appendChild(im)}else{const p=document.createElement('div');p.className='placeholder';p.textContent=b.name;c.appendChild(p)}const n=document.createElement('div');n.className='bookname';n.textContent=b.name;const m=document.createElement('div');m.className='bookmeta';m.textContent=(b.total||b.items?.length||'—')+'ページ';const pr=document.createElement('div');pr.className='progress';const sp=document.createElement('span');sp.style.width=Math.max(0,Math.min(100,b.progress||0))+'%';pr.appendChild(sp);el.append(c,n,m,pr);el.addEventListener('click',()=>openBook(b.id));el.addEventListener('contextmenu',e=>{e.preventDefault();bookOptions(b)});el.addEventListener('click',()=>{if(window.__lastTap&&Date.now()-window.__lastTap<400){bookOptions(b)}window.__lastTap=Date.now()});return el}
+function renderShelf(target,arr){target.innerHTML='';arr.forEach(b=>target.appendChild(card(b)))}
+async function refresh(){books=(await dbAll()).sort((a,b)=>(b.added||0)-(a.added||0));$('bookcount').textContent=books.length+'冊 · 端末内保存';$('empty').classList.toggle('hidden',books.length>0);renderShelf($('shelf'),books);const reading=books.filter(b=>b.lastRead).sort((a,b)=>b.lastRead-a.lastRead);$('continueSection').classList.toggle('hidden',!reading.length);renderShelf($('continueShelf'),reading.slice(0,3));$('historySection').classList.toggle('hidden',activeTab!=='history');renderShelf($('historyShelf'),reading);if(activeTab==='bookmarks')showBookmarks()}
+function showModal(html){$('modal').innerHTML=html;$('modalBack').classList.remove('hidden')}
+function hideModal(){$('modalBack').classList.add('hidden')}
+function bookOptions(b){showModal(`<h2>${escapeHTML(b.name)}</h2><p class="notice">本棚の操作</p><label class="field">タイトル<input id="renameInput" value="${escapeAttr(b.name)}"></label><div class="modalrow"><button id="renameBtn">タイトル変更</button><button id="favBtn">${b.favorite?'★ お気に入り解除':'☆ お気に入り'}</button></div><div class="modalrow"><button id="deleteBook" style="color:#ff9b9b">本棚から削除</button><button id="cancelModal">閉じる</button></div><p class="notice">削除すると、このアプリ内に保存した漫画データも削除されます。</p>`);$('renameBtn').onclick=async()=>{b.name=$('renameInput').value.trim()||b.name;await dbPut(b);hideModal();refresh()};$('favBtn').onclick=async()=>{b.favorite=!b.favorite;await dbPut(b);hideModal();refresh()};$('deleteBook').onclick=async()=>{if(confirm('この漫画を本棚と端末内保存から削除しますか？')){await dbDelete(b.id);hideModal();refresh();notify('削除しました')}};$('cancelModal').onclick=hideModal}
+function escapeHTML(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function escapeAttr(s){return escapeHTML(s)}
+async function materializePages(b){
+ pages=[];pdfDoc=null;
+ if(b.type==='images'){pages=b.items.map((it,i)=>({name:it.name,blob:it.blob,index:i}));return}
+ if(b.type==='archive'){
+  const file=b.items[0].blob;
+  if(!window.JSZip)throw Error('ZIPライブラリが未読み込みです。ネット接続中に開き直してください');
+  const zip=await JSZip.loadAsync(file);const entries=Object.values(zip.files).filter(x=>!x.dir&&!x.name.split('/').pop().startsWith('._')&&!x.name.split('/').includes('__MACOSX')&&/\.(jpe?g|png|gif|webp|avif|bmp)$/i.test(x.name)).sort((a,b)=>natural(a.name,b.name));
+  for(const ent of entries){const blob=await ent.async('blob');pages.push({name:ent.name,blob:blob.type?blob:new Blob([blob],{type:mime(ent.name)}),index:pages.length})}
+  b.total=pages.length;await dbPut(b);if(!pages.length)throw Error('ZIP内に画像がありません');return
+ }
+ if(b.type==='pdf'){
+  const lib=window.__pdfjs;if(!lib)throw Error('PDF機能の読み込み中です。数秒後にもう一度お試しください');
+  pdfDoc=await lib.getDocument({data:await b.items[0].blob.arrayBuffer()}).promise;
+  b.total=pdfDoc.numPages;pages=Array.from({length:pdfDoc.numPages},(_,i)=>({name:'ページ '+(i+1),index:i}));await dbPut(b);return
+ }
+}
+function mime(n){const ext=n.split('.').pop().toLowerCase();return ({jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',gif:'image/gif',webp:'image/webp',bmp:'image/bmp',avif:'image/avif'})[ext]||'application/octet-stream'}
+async function openBook(id, startAtSaved=true){
+ const b=books.find(x=>x.id===id)||await new Promise(async r=>r((await dbAll()).find(x=>x.id===id)));if(!b)return;
+ try{activeBook=b;state.direction=b.direction||'rtl';state.layout=b.layout||'single';zoom=1;await materializePages(b);if(!pages.length){notify('この漫画には表示できるページがありません');return}
+ page=startAtSaved?Math.min(b.page||0,pages.length-1):0;$('readerTitle').textContent=b.name;$('direction').value=state.direction;$('layout').value=state.layout;$('reader').classList.remove('hidden');await renderPage();document.querySelectorAll('.bottomnav').forEach(x=>x.classList.add('hidden'))}
+ catch(e){console.error(e);notify(e.message||'漫画を開けませんでした')}
+}
+async function renderOne(idx){
+ const item=pages[idx];if(!item)return null;
+ if(pdfDoc){const p=await pdfDoc.getPage(idx+1);const v=p.getViewport({scale:1.5*zoom});const c=document.createElement('canvas');c.width=v.width;c.height=v.height;const ctx=c.getContext('2d');await p.render({canvasContext:ctx,viewport:v}).promise;return c}
+ const url=URL.createObjectURL(item.blob);const im=document.createElement('img');im.className='pageimg';im.src=url;im.alt=item.name;im.style.transform=`scale(${zoom})`;im.onload=()=>URL.revokeObjectURL(url);return im;
+}
+async function renderPage(){
+ if(!activeBook)return;const body=$('readerBody');body.innerHTML='';body.className='readerbody'+(state.layout==='scroll'?' scrollmode':'');
+ const count=pages.length;
+ if(state.layout==='scroll'){
+  for(let i=0;i<count;i++){const el=await renderOne(i);if(el){el.style.maxWidth='100%';body.appendChild(el)}}
+  const current=body.children[page];if(current)current.scrollIntoView({block:'start'}); 
+ } else if(state.layout==='spread'){
+  const spread=document.createElement('div');spread.className='spread';
+  const pair=state.direction==='rtl'?[page+1,page]:[page,page+1];
+  for(const i of pair){if(i<count){const el=await renderOne(i);if(el)spread.appendChild(el)}else{const blank=document.createElement('div');blank.style.width='50%';spread.appendChild(blank)}}
+  body.appendChild(spread);
+ } else {const el=await renderOne(page);if(el){el.style.maxWidth='100%';el.style.maxHeight='100%';body.appendChild(el)}}
+ $('pageCounter').textContent=(page+1)+' / '+count;$('pageSlider').max=Math.max(0,count-1);$('pageSlider').value=page;$('prevPage').disabled=page<=0;$('nextPage').disabled=page>=count-1;
+ activeBook.page=page;activeBook.total=count;activeBook.progress=Math.round((page+1)/count*100);activeBook.lastRead=Date.now();activeBook.direction=state.direction;activeBook.layout=state.layout;await dbPut(activeBook);
+}
+async function movePage(delta){if(!activeBook)return;const next=Math.max(0,Math.min(pages.length-1,page+delta));if(next===page)return;page=next;await renderPage()}
+function closeReader(){if(activeBook){activeBook.page=page;activeBook.lastRead=Date.now();dbPut(activeBook)}$('reader').classList.add('hidden');document.querySelectorAll('.bottomnav').forEach(x=>x.classList.remove('hidden'));refresh()}
+function toggleBookmark(){if(!activeBook)return;const found=activeBook.bookmarks.find(x=>x===page);if(found!==undefined){activeBook.bookmarks=activeBook.bookmarks.filter(x=>x!==page);notify('しおりを外しました')}else{activeBook.bookmarks.push(page);activeBook.bookmarks.sort((a,b)=>a-b);notify('しおりを保存しました')}dbPut(activeBook)}
+function showBookmarks(){const all=[];books.forEach(b=>(b.bookmarks||[]).forEach(p=>all.push({b,p})));$('historySection').classList.remove('hidden');$('historyShelf').innerHTML='';if(!all.length){$('historyShelf').innerHTML='<div class="empty" style="grid-column:1/-1">しおりはまだありません。読書中に🔖を押してください。</div>';return}all.forEach(({b,p})=>{const el=card(b);el.querySelector('.bookmeta').textContent='しおり：'+(p+1)+'ページ';el.onclick=()=>openBook(b.id,false).then(()=>{page=p;renderPage()});$('historyShelf').appendChild(el)})}
+$('addFiles').onclick=()=>$('fileInput').click();$('addFolder').onclick=()=>$('folderInput').click();
+$('fileInput').onchange=e=>{importFiles(e.target.files);e.target.value=''};$('folderInput').onchange=e=>{importFiles(e.target.files);e.target.value=''};
+$('closeReader').onclick=closeReader;$('prevPage').onclick=()=>movePage(-1);$('nextPage').onclick=()=>movePage(1);$('pageSlider').oninput=e=>{page=+e.target.value;renderPage()};$('direction').onchange=e=>{state.direction=e.target.value;renderPage()};$('layout').onchange=e=>{state.layout=e.target.value;renderPage()};$('zoomIn').onclick=()=>{zoom=Math.min(2.5,zoom+.15);renderPage()};$('zoomOut').onclick=()=>{zoom=Math.max(.5,zoom-.15);renderPage()};$('bookmarkBtn').onclick=toggleBookmark;
+$('continueBtn').onclick=()=>{const b=books.filter(x=>x.lastRead).sort((a,b)=>b.lastRead-a.lastRead)[0];if(b)openBook(b.id,true);else notify('まだ読書履歴がありません')};
+$('readerMenu').onclick=()=>{if(!activeBook)return;showModal(`<h2>読書メニュー</h2><div class="modalrow"><button id="markStart">最初から読む</button><button id="showMarks">しおり一覧</button></div><div class="modalrow"><button id="closeMenu">閉じる</button></div>`);$('markStart').onclick=()=>{hideModal();page=0;renderPage()};$('showMarks').onclick=()=>{const list=activeBook.bookmarks||[];showModal(`<h2>しおり一覧</h2>${list.length?list.map(p=>`<div class="bookmarkrow"><span>${p+1}ページ</span><button data-page="${p}">開く</button><button data-remove="${p}">削除</button></div>`).join(''):'<p class="notice">しおりはありません</p>'}<div class="modalrow"><button id="closeMarks">閉じる</button></div>`);document.querySelectorAll('[data-page]').forEach(x=>x.onclick=()=>{page=+x.dataset.page;hideModal();renderPage()});document.querySelectorAll('[data-remove]').forEach(x=>x.onclick=()=>{activeBook.bookmarks=activeBook.bookmarks.filter(p=>p!==+x.dataset.remove);dbPut(activeBook);$('readerMenu').click()});$('closeMarks').onclick=hideModal};$('closeMenu').onclick=hideModal};
+$('settingsBtn').onclick=()=>showModal(`<h2>設定・保存について</h2><p>漫画データ、読書位置、しおりはこのiPhoneのSafari内に保存されます。Safariの履歴やWebサイトデータを消去すると、保存データも消える場合があります。</p><p>本アプリは無料です。インストール後のオフライン利用を目指したPWA形式です。初回表示とライブラリ取得時には通信が必要です。</p><div class="modalrow"><button id="exportData">本棚データを書き出す</button><button id="closeSettings">閉じる</button></div><p class="notice">書き出しは漫画本体ではなく、タイトル・読書位置・しおり等の管理情報です。漫画データのバックアップは別途必要です。</p>`);$('closeSettings').onclick=hideModal;$('exportData').onclick=async()=>{const data=await dbAll();const blob=new Blob([JSON.stringify(data.map(b=>({...b,items:b.items.map(it=>({name:it.name}))})),null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='manga-shelf-library.json';a.click();URL.revokeObjectURL(a.href);notify('管理情報を書き出しました')};
+document.querySelectorAll('.bottomnav button').forEach(btn=>btn.onclick=()=>{activeTab=btn.dataset.tab;document.querySelectorAll('.bottomnav button').forEach(x=>x.classList.toggle('active',x===btn));if(activeTab==='bookmarks'){showBookmarks()}else{$('historySection').classList.toggle('hidden',activeTab!=='history');$('shelf').parentElement.classList.toggle('hidden',activeTab==='history');$('continueSection').classList.toggle('hidden',activeTab!=='shelf');if(activeTab==='history')renderShelf($('historyShelf'),books.filter(b=>b.lastRead).sort((a,b)=>b.lastRead-a.lastRead));else $('shelf').parentElement.classList.remove('hidden')}});
+$('modalBack').addEventListener('click',e=>{if(e.target===$('modalBack'))hideModal()});
+let touchX=null;$('readerBody').addEventListener('touchstart',e=>{touchX=e.touches[0].clientX},{passive:true});$('readerBody').addEventListener('touchend',e=>{if(state.layout==='scroll'||touchX===null)return;const dx=e.changedTouches[0].clientX-touchX;touchX=null;if(Math.abs(dx)>55){const forward=state.direction==='rtl'?dx<0:dx>0;movePage(forward?(state.layout==='spread'?2:1):-(state.layout==='spread'?2:1))}},{passive:true});
+window.addEventListener('keydown',e=>{if($('reader').classList.contains('hidden'))return;if(e.key==='ArrowRight')movePage(state.direction==='rtl'?-1:1);if(e.key==='ArrowLeft')movePage(state.direction==='rtl'?1:-1);if(e.key==='Escape')closeReader()});
+openDB().then(refresh).catch(e=>{console.error(e);notify('端末内保存を開始できませんでした')});
+if('serviceWorker' in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('./service-worker.js').catch(console.warn);
+})();
+</script>
+</body></html>
