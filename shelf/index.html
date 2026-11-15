@@ -76,6 +76,7 @@ async function filesToBooks(fileList){
  }
  function fileType(f){return f.type||(/\.pdf$/i.test(f.name)?'application/pdf':(/\.(jpe?g)$/i.test(f.name)?'image/jpeg':(/\.png$/i.test(f.name)?'image/png':(/\.webp$/i.test(f.name)?'image/webp':'application/octet-stream'))))}
  function itemBlob(it){if(it.bytes)return new Blob([it.bytes],{type:it.type||mime(it.name)});return it.blob||null}
+ function itemBlo(it){return itemBlob(it)}
  const folderMode=fs.some(f=>f.webkitRelativePath);
  if(folderMode){
    const groups=new Map();
