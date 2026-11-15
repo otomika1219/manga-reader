@@ -127,7 +127,7 @@ async function materializePages(b){
 function mime(n){const ext=n.split('.').pop().toLowerCase();return ({jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',gif:'image/gif',webp:'image/webp',bmp:'image/bmp',avif:'image/avif'})[ext]||'application/octet-stream'}
 async function openBook(id, startAtSaved=true){
  const b=books.find(x=>x.id===id)||await new Promise(async r=>r((await dbAll()).find(x=>x.id===id)));if(!b)return;
- try{activeBook=b;state.direction=b.direction||'rtl';state.layout=b.layout||'single';zoom=1;await materializePages(b);if(!pages.length){notify('この漫画には表示できるページがありません');return}
+ try{activeBook=b;state.direction=b.direction||'rtl';state.layout=b.layout||'single';zoom=1;let migrated=false;for(const it of (b.items||[])){if(!it.bytes&&it.blob){const oldBlob=it.blob;it.bytes=await oldBlob.arrayBuffer();it.type=it.type||oldBlob.type||mime(it.name);delete it.blob;migrated=true}}if(migrated)await dbPut(b);await materializePages(b);if(!pages.length){notify('この漫画には表示できるページがありません');return}
  page=startAtSaved?Math.min(b.page||0,pages.length-1):0;$('readerTitle').textContent=b.name;$('direction').value=state.direction;$('layout').value=state.layout;setFullscreen(false);$('reader').classList.remove('hidden');await renderPage();document.querySelectorAll('.bottomnav').forEach(x=>x.classList.add('hidden'))}
  catch(e){console.error(e);notify(e.message||'漫画を開けませんでした')}
 }
