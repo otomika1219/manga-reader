@@ -69,25 +69,23 @@ async function filesToBooks(fileList){
  const fs=Array.from(fileList||[]);if(!fs.length)return [];
  const out=[], imageFiles=fs.filter(isImage), archives=fs.filter(isArchive), pdfs=fs.filter(isPdf), unsupported=fs.filter(f=>!isImage(f)&&!isArchive(f)&&!isPdf(f));
  // Convert File objects to ordinary Blob data and never store File references in IndexedDB.
- const blobCache=new Map();
- async function storedBlob(f){
-   if(!blobCache.has(f)){
-     const type=f.type||(/\.pdf$/i.test(f.name)?'application/pdf':(/\.(jpe?g)$/i.test(f.name)?'image/jpeg':(/\.png$/i.test(f.name)?'image/png':(/\.webp$/i.test(f.name)?'image/webp':'application/octet-stream'))));
-     const bytes=await f.arrayBuffer();
-     blobCache.set(f,new Blob([bytes],{type}));
-   }
-   return blobCache.get(f);
+ const byteCache=new Map();
+ async function storedBytes(f){
+   if(!byteCache.has(f))byteCache.set(f,await f.arrayBuffer());
+   return byteCache.get(f);
  }
+ function fileType(f){return f.type||(/\\.pdf$/i.test(f.name)?'application/pdf':(/\\.(jpe?g)$/i.test(f.name)?'image/jpeg':(/\\.png$/i.test(f.name)?'image/png':(/\\.webp$/i.test(f.name)?'image/webp':'application/octet-stream'))))}
+ function itemBlob(it){if(it.bytes)return new Blob([it.bytes],{type:it.type||mime(it.name)});return it.blob||null}
  const folderMode=fs.some(f=>f.webkitRelativePath);
  if(folderMode){
    const groups=new Map();
    imageFiles.forEach(f=>{const path=f.webkitRelativePath||f.name;const parts=path.split('/');const group=parts.length>2?parts.slice(0,-1).join('/'):parts[0]||'画像';if(!groups.has(group))groups.set(group,[]);groups.get(group).push(f)});
-   for(const [name,arr] of groups){arr.sort((a,b)=>natural(a.name,b.name));const items=[];for(const f of arr)items.push({name:f.name,blob:await storedBlob(f)});out.push(makeBook(name.split('/').pop(),'images',items));}
+   for(const [name,arr] of groups){arr.sort((a,b)=>natural(a.name,b.name));const items=[];for(const f of arr)items.push({name:f.name,bytes:await storedBytes(f),type:fileType(f)});out.push(makeBook(name.split('/').pop(),'images',items));}
  } else if(imageFiles.length){
-   imageFiles.sort((a,b)=>natural(a.name,b.name));const items=[];for(const f of imageFiles)items.push({name:f.name,blob:await storedBlob(f)});out.push(makeBook(imageFiles.length===1?safeName(imageFiles[0].name):'画像まとめ','images',items));
+   imageFiles.sort((a,b)=>natural(a.name,b.name));const items=[];for(const f of imageFiles)items.push({name:f.name,bytes:await storedBytes(f),type:fileType(f)});out.push(makeBook(imageFiles.length===1?safeName(imageFiles[0].name):'画像まとめ','images',items));
  }
- for(const f of archives)out.push(makeBook(safeName(f.name),'archive',[{name:f.name,blob:await storedBlob(f)}]));
- for(const f of pdfs)out.push(makeBook(safeName(f.name),'pdf',[{name:f.name,blob:await storedBlob(f)}]));
+ for(const f of archives)out.push(makeBook(safeName(f.name),'archive',[{name:f.name,bytes:await storedBytes(f),type:fileType(f)}]));
+ for(const f of pdfs)out.push(makeBook(safeName(f.name),'pdf',[{name:f.name,bytes:await storedBytes(f),type:fileType(f)}]));
  if(unsupported.length)notify('未対応のファイルを'+unsupported.length+'件スキップしました');
  return out;
 }
@@ -96,7 +94,7 @@ async function importFiles(list){
  for(const b of incoming){await dbPut(b)}await refresh();notify(incoming.length+'冊を本棚に追加しました')}
  catch(e){console.error('漫画の保存に失敗:',e);const detail=(e&&((e.name?e.name+': ':'')+e.message))||'原因不明';notify('保存失敗：'+detail.slice(0,90))}
 }
-function coverURL(b){const it=b.items?.[b.coverIndex||0];if(!it)return '';if(it.blob)return URL.createObjectURL(it.blob);return ''}
+function coverURL(b){const it=b.items?.[b.coverIndex||0];if(!it)return '';const blob=itemBlob(it);if(blob)return URL.createObjectURL(blob);return ''}
 function card(b){const el=document.createElement('div');el.className='book';const c=document.createElement('div');c.className='cover';const url=coverURL(b);if(url){const im=document.createElement('img');im.src=url;im.alt='';c.appendChild(im)}else{const p=document.createElement('div');p.className='placeholder';p.textContent=b.name;c.appendChild(p)}const n=document.createElement('div');n.className='bookname';n.textContent=b.name;const m=document.createElement('div');m.className='bookmeta';m.textContent=(b.total||b.items?.length||'—')+'ページ';const pr=document.createElement('div');pr.className='progress';const sp=document.createElement('span');sp.style.width=Math.max(0,Math.min(100,b.progress||0))+'%';pr.appendChild(sp);const mark=document.createElement('div');mark.className='selectMark'+(selectionMode?' visible':'')+(selectedBookIds.has(b.id)?' checked':'');mark.textContent=selectedBookIds.has(b.id)?'✓':'';el.append(c,n,m,pr,mark);el.classList.toggle('selected',selectedBookIds.has(b.id));el.addEventListener('click',()=>{if(selectionMode){toggleSelected(b.id);return}openBook(b.id)});el.addEventListener('contextmenu',e=>{e.preventDefault();if(selectionMode)toggleSelected(b.id);else bookOptions(b)});return el}
 function renderBulkBar(){const bar=$('bulkBar');if(!bar)return;bar.classList.toggle('hidden',!selectionMode);$('selectedCount').textContent=selectedBookIds.size+'冊選択中';$('selectAllBooks').textContent=books.length>0&&selectedBookIds.size===books.length?'選択解除':'すべて選択';$('deleteSelectedBooks').disabled=selectedBookIds.size===0}
 function toggleSelected(id){if(selectedBookIds.has(id))selectedBookIds.delete(id);else selectedBookIds.add(id);renderShelf($('shelf'),books);renderBulkBar()}
@@ -112,9 +110,9 @@ function escapeHTML(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':
 function escapeAttr(s){return escapeHTML(s)}
 async function materializePages(b){
  pages=[];pdfDoc=null;
- if(b.type==='images'){pages=b.items.map((it,i)=>({name:it.name,blob:it.blob,index:i}));return}
+ if(b.type==='images'){pages=b.items.map((it,i)=>({name:it.name,blob:itemBlob(it),index:i}));return}
  if(b.type==='archive'){
-  const file=b.items[0].blob;
+  const file=itemBlob(b.items[0]);
   if(!window.JSZip)throw Error('ZIPライブラリが未読み込みです。ネット接続中に開き直してください');
   const zip=await JSZip.loadAsync(file);const entries=Object.values(zip.files).filter(x=>!x.dir&&!x.name.split('/').pop().startsWith('._')&&!x.name.split('/').includes('__MACOSX')&&/\.(jpe?g|png|gif|webp|avif|bmp)$/i.test(x.name)).sort((a,b)=>natural(a.name,b.name));
   for(const ent of entries){const blob=await ent.async('blob');pages.push({name:ent.name,blob:blob.type?blob:new Blob([blob],{type:mime(ent.name)}),index:pages.length})}
@@ -122,7 +120,7 @@ async function materializePages(b){
  }
  if(b.type==='pdf'){
   const lib=window.__pdfjs;if(!lib)throw Error('PDF機能の読み込み中です。数秒後にもう一度お試しください');
-  pdfDoc=await lib.getDocument({data:await b.items[0].blob.arrayBuffer()}).promise;
+  pdfDoc=await lib.getDocument({data:await itemBlob(b.items[0]).arrayBuffer()}).promise;
   b.total=pdfDoc.numPages;pages=Array.from({length:pdfDoc.numPages},(_,i)=>({name:'ページ '+(i+1),index:i}));await dbPut(b);return
  }
 }
@@ -146,7 +144,7 @@ async function renderPage(){
   for(let i=0;i<count;i++){const slot=document.createElement('div');slot.dataset.pageIndex=String(i);slot.style.width='100%';slot.style.minHeight='60vh';slot.style.display='flex';slot.style.alignItems='flex-start';slot.style.justifyContent='center';slot.style.overflow='hidden';slot.style.margin='0 auto 3px';body.appendChild(slot);slots.push(slot)}
   const loadSlot=async slot=>{if(slot.dataset.loaded==='1')return;slot.dataset.loaded='1';const i=Number(slot.dataset.pageIndex);try{const el=await renderOne(i);if(el){el.style.maxWidth='100%';el.style.width='100%';el.style.height='auto';el.style.maxHeight='none';slot.style.minHeight='0';slot.style.overflow='visible';slot.appendChild(el)}}catch(e){slot.dataset.loaded='0';console.error(e);notify('ページの読み込みに失敗しました')}};
   if('IntersectionObserver' in window){pageObserver=new IntersectionObserver(entries=>{entries.forEach(entry=>{if(entry.isIntersecting){loadSlot(entry.target);pageObserver.unobserve(entry.target)}})},{root:body,rootMargin:'1000px 0px'});slots.forEach(slot=>pageObserver.observe(slot))}else{for(const slot of slots)await loadSlot(slot)}
-  const current=slots[page];if(current)current.scrollIntoView({block:'start'});
+  const current=slots[page];if(current)requestAnimationFrame(()=>{body.scrollTop=current.offsetTop;});
  } else if(state.layout==='spread'){
   const spread=document.createElement('div');spread.className='spread';
   if(isSmallScreen()){const el=await renderOne(page);if(el){el.style.width='100%';el.style.maxWidth='100%';el.style.maxHeight='100%';body.appendChild(el)}}else{const pair=state.direction==='rtl'?[page+1,page]:[page,page+1];
