@@ -65,6 +65,7 @@ function isPdf(f){return /\.pdf$/i.test(f.name)||f.type==='application/pdf'}
 function natural(a,b){return a.localeCompare(b,undefined,{numeric:true,sensitivity:'base'})}
 function safeName(s){return (s||'無題').replace(/\.[^.]+$/,'')}
 function makeBook(name,type,items){return {id:uid(),name,type,items,coverIndex:0,page:0,direction:'rtl',layout:'single',bookmarks:[],lastRead:0,added:Date.now(),total:items.length,progress:0}}
+function itemBlo(it){if(it.bytes)return new Blob([it.bytes],{type:it.type||mime(it.name)});return it.blob||null}
 async function filesToBooks(fileList){
  const fs=Array.from(fileList||[]);if(!fs.length)return [];
  const out=[], imageFiles=fs.filter(isImage), archives=fs.filter(isArchive), pdfs=fs.filter(isPdf), unsupported=fs.filter(f=>!isImage(f)&&!isArchive(f)&&!isPdf(f));
@@ -75,7 +76,6 @@ async function filesToBooks(fileList){
    return byteCache.get(f);
  }
  function fileType(f){return f.type||(/\.pdf$/i.test(f.name)?'application/pdf':(/\.(jpe?g)$/i.test(f.name)?'image/jpeg':(/\.png$/i.test(f.name)?'image/png':(/\.webp$/i.test(f.name)?'image/webp':'application/octet-stream'))))}
- function itemBlo(it){if(it.bytes)return new Blob([it.bytes],{type:it.type||mime(it.name)});return it.blob||null}
  const folderMode=fs.some(f=>f.webkitRelativePath);
  if(folderMode){
    const groups=new Map();
