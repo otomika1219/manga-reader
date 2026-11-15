@@ -75,8 +75,7 @@ async function filesToBooks(fileList){
    return byteCache.get(f);
  }
  function fileType(f){return f.type||(/\.pdf$/i.test(f.name)?'application/pdf':(/\.(jpe?g)$/i.test(f.name)?'image/jpeg':(/\.png$/i.test(f.name)?'image/png':(/\.webp$/i.test(f.name)?'image/webp':'application/octet-stream'))))}
- function itemBlob(it){if(it.bytes)return new Blob([it.bytes],{type:it.type||mime(it.name)});return it.blob||null}
- function itemBlo(it){return itemBlob(it)}
+ function itemBlo(it){if(it.bytes)return new Blob([it.bytes],{type:it.type||mime(it.name)});return it.blob||null}
  const folderMode=fs.some(f=>f.webkitRelativePath);
  if(folderMode){
    const groups=new Map();
@@ -95,7 +94,7 @@ async function importFiles(list){
  for(const b of incoming){await dbPut(b)}await refresh();notify(incoming.length+'冊を本棚に追加しました')}
  catch(e){console.error('漫画の保存に失敗:',e);const detail=(e&&((e.name?e.name+': ':'')+e.message))||'原因不明';notify('保存失敗：'+detail.slice(0,90))}
 }
-function coverURL(b){const it=b.items?.[b.coverIndex||0];if(!it)return '';const blob=itemBlob(it);if(blob)return URL.createObjectURL(blob);return ''}
+function coverURL(b){const it=b.items?.[b.coverIndex||0];if(!it)return '';const blob=itemBlo(it);if(blob)return URL.createObjectURL(blob);return ''}
 function card(b){const el=document.createElement('div');el.className='book';const c=document.createElement('div');c.className='cover';const url=coverURL(b);if(url){const im=document.createElement('img');im.src=url;im.alt='';c.appendChild(im)}else{const p=document.createElement('div');p.className='placeholder';p.textContent=b.name;c.appendChild(p)}const n=document.createElement('div');n.className='bookname';n.textContent=b.name;const m=document.createElement('div');m.className='bookmeta';m.textContent=(b.total||b.items?.length||'—')+'ページ';const pr=document.createElement('div');pr.className='progress';const sp=document.createElement('span');sp.style.width=Math.max(0,Math.min(100,b.progress||0))+'%';pr.appendChild(sp);const mark=document.createElement('div');mark.className='selectMark'+(selectionMode?' visible':'')+(selectedBookIds.has(b.id)?' checked':'');mark.textContent=selectedBookIds.has(b.id)?'✓':'';el.append(c,n,m,pr,mark);el.classList.toggle('selected',selectedBookIds.has(b.id));el.addEventListener('click',()=>{if(selectionMode){toggleSelected(b.id);return}openBook(b.id)});el.addEventListener('contextmenu',e=>{e.preventDefault();if(selectionMode)toggleSelected(b.id);else bookOptions(b)});return el}
 function renderBulkBar(){const bar=$('bulkBar');if(!bar)return;bar.classList.toggle('hidden',!selectionMode);$('selectedCount').textContent=selectedBookIds.size+'冊選択中';$('selectAllBooks').textContent=books.length>0&&selectedBookIds.size===books.length?'選択解除':'すべて選択';$('deleteSelectedBooks').disabled=selectedBookIds.size===0}
 function toggleSelected(id){if(selectedBookIds.has(id))selectedBookIds.delete(id);else selectedBookIds.add(id);renderShelf($('shelf'),books);renderBulkBar()}
@@ -111,9 +110,9 @@ function escapeHTML(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':
 function escapeAttr(s){return escapeHTML(s)}
 async function materializePages(b){
  pages=[];pdfDoc=null;
- if(b.type==='images'){pages=b.items.map((it,i)=>({name:it.name,blob:itemBlob(it),index:i}));return}
+ if(b.type==='images'){pages=b.items.map((it,i)=>({name:it.name,blob:itemBlo(it),index:i}));return}
  if(b.type==='archive'){
-  const file=itemBlob(b.items[0]);
+  const file=itemBlo(b.items[0]);
   if(!window.JSZip)throw Error('ZIPライブラリが未読み込みです。ネット接続中に開き直してください');
   const zip=await JSZip.loadAsync(file);const entries=Object.values(zip.files).filter(x=>!x.dir&&!x.name.split('/').pop().startsWith('._')&&!x.name.split('/').includes('__MACOSX')&&/\.(jpe?g|png|gif|webp|avif|bmp)$/i.test(x.name)).sort((a,b)=>natural(a.name,b.name));
   for(const ent of entries){const blob=await ent.async('blob');pages.push({name:ent.name,blob:blob.type?blob:new Blob([blob],{type:mime(ent.name)}),index:pages.length})}
@@ -121,7 +120,7 @@ async function materializePages(b){
  }
  if(b.type==='pdf'){
   const lib=window.__pdfjs;if(!lib)throw Error('PDF機能の読み込み中です。数秒後にもう一度お試しください');
-  pdfDoc=await lib.getDocument({data:await itemBlob(b.items[0]).arrayBuffer()}).promise;
+  pdfDoc=await lib.getDocument({data:await itemBlo(b.items[0]).arrayBuffer()}).promise;
   b.total=pdfDoc.numPages;pages=Array.from({length:pdfDoc.numPages},(_,i)=>({name:'ページ '+(i+1),index:i}));await dbPut(b);return
  }
 }
