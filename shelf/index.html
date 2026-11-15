@@ -147,7 +147,7 @@ async function renderPage(){
   const current=slots[page];if(current)requestAnimationFrame(()=>{body.scrollTop+=current.getBoundingClientRect().top-body.getBoundingClientRect().top;});
  } else if(state.layout==='spread'){
   const spread=document.createElement('div');spread.className='spread';
-  const pair=state.direction==='rtl'?[page+1,page]:[page,page+1];
+  const pair=state.direction==='rtl'?[page,page+1]:[page+1,page];
   for(const i of pair){if(i<count){const el=await renderOne(i);if(el){el.style.transform='none';el.style.maxWidth='50%';el.style.width='50%';el.style.height='100%';el.style.maxHeight='100%';spread.appendChild(el)}}else{const blank=document.createElement('div');blank.style.width='50%';blank.style.height='100%';spread.appendChild(blank)}}
   body.appendChild(spread)
  } else {const el=await renderOne(page);if(el){el.style.maxWidth='100%';el.style.maxHeight='100%';body.appendChild(el)}}
