@@ -143,10 +143,9 @@ async function renderPage(){
  const count=pages.length;
  if(state.layout==='scroll'){
   await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
-   const scrollPageMaxH=Math.max(240,Math.floor(body.clientHeight-8));
    const slots=[];
   for(let i=0;i<count;i++){const slot=document.createElement('div');slot.dataset.pageIndex=String(i);slot.style.width='100%';slot.style.maxWidth='100%';slot.style.minWidth='0';slot.style.boxSizing='border-box';slot.style.flex='0 0 100%';slot.style.minHeight='60vh';slot.style.display='flex';slot.style.alignItems='flex-start';slot.style.justifyContent='center';slot.style.overflow='hidden';slot.style.margin='0 auto 3px';body.appendChild(slot);slots.push(slot)}
-  const loadSlot=async slot=>{if(slot.dataset.loaded==='1')return;slot.dataset.loaded='1';const i=Number(slot.dataset.pageIndex);try{const el=await renderOne(i);if(el){const maxH=scrollPageMaxH;el.style.transform='none';el.style.display='block';el.style.width='auto';el.style.maxWidth='100%';el.style.height='auto';el.style.maxHeight=maxH+'px';el.style.objectFit='contain';el.style.flex='0 1 auto';slot.style.minHeight='0';slot.style.overflow='visible';slot.appendChild(el)}}catch(e){slot.dataset.loaded='0';console.error(e);notify('ページの読み込みに失敗しました')}};
+  const loadSlot=async slot=>{if(slot.dataset.loaded==='1')return;slot.dataset.loaded='1';const i=Number(slot.dataset.pageIndex);try{const el=await renderOne(i);if(el){el.style.transform='none';el.style.display='block';el.style.width='auto';el.style.maxWidth='100%';el.style.height='auto';el.style.maxHeight='none';el.style.objectFit='contain';el.style.flex='0 1 auto';slot.style.minHeight='0';slot.style.overflow='visible';slot.appendChild(el)}}catch(e){slot.dataset.loaded='0';console.error(e);notify('ページの読み込みに失敗しました')}};
   if('IntersectionObserver' in window){pageObserver=new IntersectionObserver(entries=>{entries.forEach(entry=>{if(entry.isIntersecting){loadSlot(entry.target);pageObserver.unobserve(entry.target)}})},{root:body,rootMargin:'1000px 0px'});slots.forEach(slot=>pageObserver.observe(slot))}else{for(const slot of slots)await loadSlot(slot)}
   const current=slots[page];if(current)requestAnimationFrame(()=>{body.scrollTop+=current.getBoundingClientRect().top-body.getBoundingClientRect().top;});
  } else if(state.layout==='spread'){
