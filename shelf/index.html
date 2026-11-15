@@ -138,6 +138,8 @@ async function renderOne(idx){
 }
 async function renderPage(){
  if(!activeBook)return;if(pageObserver){pageObserver.disconnect();pageObserver=null}const body=$('readerBody');body.innerHTML='';body.className='readerbody'+(state.layout==='scroll'?' scrollmode':'');
+ // 見開きは必ず偶数ページ番号を基準に組み合わせ、保存済みの奇数ページから開いた場合も組み合わせがずれないようにする。
+ if(state.layout==='spread')page=Math.floor(page/2)*2;
  const count=pages.length;
  if(state.layout==='scroll'){
   await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
