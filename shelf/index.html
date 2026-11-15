@@ -131,9 +131,9 @@ async function openBook(id, startAtSaved=true){
  page=startAtSaved?Math.min(b.page||0,pages.length-1):0;$('readerTitle').textContent=b.name;$('direction').value=state.direction;$('layout').value=state.layout;setFullscreen(false);$('reader').classList.remove('hidden');await renderPage();document.querySelectorAll('.bottomnav').forEach(x=>x.classList.add('hidden'))}
  catch(e){console.error(e);notify(e.message||'漫画を開けませんでした')}
 }
-async function renderOne(idx){
+async function renderOne(idx,scaleOverride){
  const item=pages[idx];if(!item)return null;
- if(pdfDoc){const p=await pdfDoc.getPage(idx+1);const v=p.getViewport({scale:1.5*zoom});const c=document.createElement('canvas');c.width=v.width;c.height=v.height;const ctx=c.getContext('2d');await p.render({canvasContext:ctx,viewport:v}).promise;return c}
+ if(pdfDoc){const p=await pdfDoc.getPage(idx+1);const v=p.getViewport({scale:(scaleOverride||1.5)*zoom});const c=document.createElement('canvas');c.width=v.width;c.height=v.height;const ctx=c.getContext('2d');await p.render({canvasContext:ctx,viewport:v}).promise;return c}
  const url=URL.createObjectURL(item.blob);const im=document.createElement('img');im.className='pageimg';im.src=url;im.alt=item.name;im.style.transform=`scale(${zoom})`;im.onload=()=>URL.revokeObjectURL(url);return im;
 }
 async function renderPage(){
@@ -145,8 +145,8 @@ async function renderPage(){
   await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
    const slots=[];
   for(let i=0;i<count;i++){const slot=document.createElement('div');slot.dataset.pageIndex=String(i);slot.style.width='100%';slot.style.maxWidth='100%';slot.style.minWidth='0';slot.style.boxSizing='border-box';slot.style.flex='0 0 100%';slot.style.minHeight='60vh';slot.style.display='flex';slot.style.alignItems='flex-start';slot.style.justifyContent='center';slot.style.overflow='hidden';slot.style.margin='0 auto 3px';body.appendChild(slot);slots.push(slot)}
-  const loadSlot=async slot=>{if(slot.dataset.loaded==='1')return;slot.dataset.loaded='1';const i=Number(slot.dataset.pageIndex);try{const el=await renderOne(i);if(el){el.style.transform='none';el.style.display='block';el.style.width='auto';el.style.maxWidth='100%';el.style.height='auto';el.style.maxHeight='none';el.style.objectFit='contain';el.style.flex='0 1 auto';slot.style.minHeight='0';slot.style.overflow='visible';slot.appendChild(el)}}catch(e){slot.dataset.loaded='0';console.error(e);notify('ページの読み込みに失敗しました')}};
-  if('IntersectionObserver' in window){pageObserver=new IntersectionObserver(entries=>{entries.forEach(entry=>{if(entry.isIntersecting){loadSlot(entry.target);pageObserver.unobserve(entry.target)}})},{root:body,rootMargin:'1000px 0px'});slots.forEach(slot=>pageObserver.observe(slot))}else{for(const slot of slots)await loadSlot(slot)}
+  const loadSlot=async slot=>{if(slot.dataset.loaded==='1')return;slot.dataset.loaded='1';const i=Number(slot.dataset.pageIndex);try{const el=await renderOne(i,1.0);if(el){el.style.transform='none';el.style.display='block';el.style.width='auto';el.style.maxWidth='100%';el.style.height='auto';el.style.maxHeight='none';el.style.objectFit='contain';el.style.flex='0 1 auto';slot.style.minHeight='0';slot.style.overflow='visible';slot.appendChild(el)}}catch(e){slot.dataset.loaded='0';console.error(e);notify('ページの読み込みに失敗しました')}};
+  if('IntersectionObserver' in window){pageObserver=new IntersectionObserver(entries=>{entries.forEach(entry=>{if(entry.isIntersecting){loadSlot(entry.target);pageObserver.unobserve(entry.target)}})},{root:body,rootMargin:'400px 0px'});slots.forEach(slot=>pageObserver.observe(slot))}else{for(const slot of slots)await loadSlot(slot)}
   const current=slots[page];if(current)requestAnimationFrame(()=>{body.scrollTop+=current.getBoundingClientRect().top-body.getBoundingClientRect().top;});
  } else if(state.layout==='spread'){
   const spread=document.createElement('div');spread.className='spread';
