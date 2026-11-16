@@ -80,42 +80,38 @@ function itemBlob(it){if(it.bytes)return new Blob([it.bytes],{type:it.type||mime
 async function filesToBooks(fileList){
  const fs=Array.from(fileList||[]);if(!fs.length)return [];
  const out=[], imageFiles=fs.filter(isImage), archives=fs.filter(isArchive), pdfs=fs.filter(isPdf), unsupported=fs.filter(f=>!isImage(f)&&!isArchive(f)&&!isPdf(f));
- // Convert File objects to ordinary Blob data and never store File references in IndexedDB.
- const byteCache=new Map();
- async function storedBytes(f){
-   if(!byteCache.has(f))byteCache.set(f,await f.arrayBuffer());
-   return byteCache.get(f);
- }
+ // Keep file content as Blob data. Avoid expanding the entire PDF into an ArrayBuffer during import.
  function fileType(f){return f.type||(/\.pdf$/i.test(f.name)?'application/pdf':(/\.(jpe?g)$/i.test(f.name)?'image/jpeg':(/\.png$/i.test(f.name)?'image/png':(/\.webp$/i.test(f.name)?'image/webp':'application/octet-stream'))))}
+ function storedBlob(f){return new Blob([f],{type:fileType(f)})}
  const folderMode=fs.some(f=>f.webkitRelativePath);
  if(folderMode){
    const groups=new Map();
    imageFiles.forEach(f=>{const path=f.webkitRelativePath||f.name;const parts=path.split('/');const group=parts.length>2?parts.slice(0,-1).join('/'):parts[0]||'画像';if(!groups.has(group))groups.set(group,[]);groups.get(group).push(f)});
-   for(const [name,arr] of groups){arr.sort((a,b)=>natural(a.name,b.name));const items=[];for(const f of arr)items.push({name:f.name,bytes:await storedBytes(f),type:fileType(f)});out.push(makeBook(name.split('/').pop(),'images',items));}
+   for(const [name,arr] of groups){arr.sort((a,b)=>natural(a.name,b.name));const items=[];for(const f of arr)items.push({name:f.name,blob:storedBlob(f),type:fileType(f)});out.push(makeBook(name.split('/').pop(),'images',items));}
  } else if(imageFiles.length){
-   imageFiles.sort((a,b)=>natural(a.name,b.name));const items=[];for(const f of imageFiles)items.push({name:f.name,bytes:await storedBytes(f),type:fileType(f)});out.push(makeBook(imageFiles.length===1?safeName(imageFiles[0].name):'画像まとめ','images',items));
+   imageFiles.sort((a,b)=>natural(a.name,b.name));const items=[];for(const f of imageFiles)items.push({name:f.name,blob:storedBlob(f),type:fileType(f)});out.push(makeBook(imageFiles.length===1?safeName(imageFiles[0].name):'画像まとめ','images',items));
  }
- for(const f of archives)out.push(makeBook(safeName(f.name),'archive',[{name:f.name,bytes:await storedBytes(f),type:fileType(f)}]));
- for(const f of pdfs)out.push(makeBook(safeName(f.name),'pdf',[{name:f.name,bytes:await storedBytes(f),type:fileType(f)}]));
+ for(const f of archives)out.push(makeBook(safeName(f.name),'archive',[{name:f.name,blob:storedBlob(f),type:fileType(f)}]));
+ for(const f of pdfs)out.push(makeBook(safeName(f.name),'pdf',[{name:f.name,blob:storedBlob(f),type:fileType(f)}]));
  if(unsupported.length)notify('未対応のファイルを'+unsupported.length+'件スキップしました');
  return out;
 }
-async function itemBytesForCompare(item){
- if(item.bytes instanceof ArrayBuffer)return new Uint8Array(item.bytes);
- if(ArrayBuffer.isView(item.bytes))return new Uint8Array(item.bytes.buffer,item.bytes.byteOffset,item.bytes.byteLength);
- const blob=item.blob;
- if(blob instanceof Blob)return new Uint8Array(await blob.arrayBuffer());
- return new Uint8Array(0);
-}
+function compareBlob(item){if(item.bytes)return new Blob([item.bytes],{type:item.type||mime(item.name)});return item.blob instanceof Blob?item.blob:new Blob([])}
 async function sameBookContent(a,b){
  if(a.type!==b.type||a.name!==b.name)return false;
  const aa=(a.items||[]).slice().sort((x,y)=>natural(x.name,y.name)),bb=(b.items||[]).slice().sort((x,y)=>natural(x.name,y.name));
  if(aa.length!==bb.length)return false;
+ const chunkSize=1024*1024;
  for(let i=0;i<aa.length;i++){
   if(aa[i].name!==bb[i].name)return false;
-  const x=await itemBytesForCompare(aa[i]),y=await itemBytesForCompare(bb[i]);
-  if(x.length!==y.length)return false;
-  for(let j=0;j<x.length;j++)if(x[j]!==y[j])return false;
+  const x=compareBlob(aa[i]),y=compareBlob(bb[i]);
+  if(x.size!==y.size)return false;
+  for(let offset=0;offset<x.size;offset+=chunkSize){
+   const xb=new Uint8Array(await x.slice(offset,Math.min(offset+chunkSize,x.size)).arrayBuffer());
+   const yb=new Uint8Array(await y.slice(offset,Math.min(offset+chunkSize,y.size)).arrayBuffer());
+   if(xb.length!==yb.length)return false;
+   for(let j=0;j<xb.length;j++)if(xb[j]!==yb[j])return false;
+  }
  }
  return true;
 }
@@ -227,7 +223,7 @@ async function materializePages(b){
 function mime(n){const ext=n.split('.').pop().toLowerCase();return ({jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',gif:'image/gif',webp:'image/webp',bmp:'image/bmp',avif:'image/avif'})[ext]||'application/octet-stream'}
 async function openBook(id, startAtSaved=true){
  const b=books.find(x=>x.id===id)||await new Promise(async r=>r((await dbAll()).find(x=>x.id===id)));if(!b)return;
- try{activeBook=b;state.direction=b.direction||'rtl';state.layout=b.layout||'single';zoom=1;let migrated=false;for(const it of (b.items||[])){if(!it.bytes&&it.blob){const oldBlob=it.blob;it.bytes=await oldBlob.arrayBuffer();it.type=it.type||oldBlob.type||mime(it.name);delete it.blob;migrated=true}}if(migrated)await dbPut(b);await materializePages(b);if(!pages.length){notify('この漫画には表示できるページがありません');return}
+ try{activeBook=b;state.direction=b.direction||'rtl';state.layout=b.layout||'single';zoom=1;await materializePages(b);if(!pages.length){notify('この漫画には表示できるページがありません');return}
  page=startAtSaved?Math.min(b.page||0,pages.length-1):0;$('readerTitle').textContent=b.name;$('direction').value=state.direction;$('layout').value=state.layout;setFullscreen(false);$('reader').classList.remove('hidden');await renderPage();document.querySelectorAll('.bottomnav').forEach(x=>x.classList.add('hidden'))}
  catch(e){console.error(e);notify(e.message||'漫画を開けませんでした')}
 }
