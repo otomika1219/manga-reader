@@ -54,7 +54,7 @@ const selectedBookIds=new Set();
  let shelfQuery='',favoritesOnly=false;
  function sortBooks(list){const a=list.slice();if(shelfSort==='nameAsc')return a.sort((x,y)=>natural(x.name||'',y.name||''));if(shelfSort==='nameDesc')return a.sort((x,y)=>natural(y.name||'',x.name||''));if(shelfSort==='lastRead')return a.sort((x,y)=>(y.lastRead||0)-(x.lastRead||0)||(y.added||0)-(x.added||0));return a.sort((x,y)=>(y.added||0)-(x.added||0))}
  function updateSortLabel(){const el=$('shelfSort');if(el)el.value=shelfSort}
- function renderMainShelf(){const q=shelfQuery.trim().toLocaleLowerCase();const shown=books.filter(b=>(!q||(b.name||'').toLocaleLowerCase().includes(q))&&(!favoritesOnly||b.favorite));renderShelf($('shelf'),shown);$('noSearchResults').classList.toggle('hidden',books.length===0||shown.length>0);$('favoritesOnly').textContent=favoritesOnly?'★ お気に入りのみ':'☆ お気に入り';$('favoritesOnly').setAttribute('aria-pressed',String(favoritesOnly))}
+ function normalizeShelfSearch(value){return String(value||'').normalize('NFKC').toLocaleLowerCase().replace(/[\\s\\u3000]+/g,'').replace(/[\\u30a1-\\u30f6]/g,ch=>String.fromCharCode(ch.charCodeAt(0)-0x60))}\nfunction renderMainShelf(){const q=normalizeShelfSearch(shelfQuery);const shown=books.filter(b=>(!q||normalizeShelfSearch(b.name).includes(q))&&(!favoritesOnly||b.favorite));renderShelf($('shelf'),shown);$('noSearchResults').classList.toggle('hidden',books.length===0||shown.length>0);$('favoritesOnly').textContent=favoritesOnly?'★ お気に入りのみ':'☆ お気に入り';$('favoritesOnly').setAttribute('aria-pressed',String(favoritesOnly))}
 const state={direction:'rtl',layout:'single'};
 function isSmallScreen(){return window.matchMedia('(max-width: 600px)').matches}
 function pageStep(){return state.layout==='spread'?2:1}
