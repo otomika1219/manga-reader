@@ -92,11 +92,56 @@ async function filesToBooks(fileList){
  if(unsupported.length)notify('未対応のファイルを'+unsupported.length+'件スキップしました');
  return out;
 }
-function sameBookContent(a,b){if(a.type!==b.type||a.name!==b.name)return false;const an=(a.items||[]).map(x=>x.name).sort(natural),bn=(b.items||[]).map(x=>x.name).sort(natural);return an.length===bn.length&&an.every((n,i)=>n===bn[i])}
+async function itemBytesForCompare(item){
+ if(item.bytes instanceof ArrayBuffer)return new Uint8Array(item.bytes);
+ if(ArrayBuffer.isView(item.bytes))return new Uint8Array(item.bytes.buffer,item.bytes.byteOffset,item.bytes.byteLength);
+ const blob=item.blob;
+ if(blob instanceof Blob)return new Uint8Array(await blob.arrayBuffer());
+ return new Uint8Array(0);
+}
+async function sameBookContent(a,b){
+ if(a.type!==b.type||a.name!==b.name)return false;
+ const aa=(a.items||[]).slice().sort((x,y)=>natural(x.name,y.name)),bb=(b.items||[]).slice().sort((x,y)=>natural(x.name,y.name));
+ if(aa.length!==bb.length)return false;
+ for(let i=0;i<aa.length;i++){
+  if(aa[i].name!==bb[i].name)return false;
+  const x=await itemBytesForCompare(aa[i]),y=await itemBytesForCompare(bb[i]);
+  if(x.length!==y.length)return false;
+  for(let j=0;j<x.length;j++)if(x[j]!==y[j])return false;
+ }
+ return true;
+}
 async function importFiles(list){
- try{notify('漫画を取り込んでいます…');const incoming=await filesToBooks(list);if(!incoming.length){notify('対応ファイルが見つかりません');return}
- const existing=await dbAll();let added=0,skipped=0;for(const b of incoming){if(existing.some(old=>sameBookContent(old,b))){skipped++;continue}await dbPut(b);existing.push(b);added++}await refresh();notify(added+'冊を追加しました'+(skipped?'（同じ内容の重複'+skipped+'冊はスキップ）':''))}
- catch(e){console.error('漫画の保存に失敗:',e);const detail=(e&&((e.name?e.name+': ':'')+e.message))||'原因不明';notify('保存失敗：'+detail.slice(0,90))}
+ try{
+  notify('漫画を取り込んでいます…');
+  const incoming=await filesToBooks(list);
+  if(!incoming.length){notify('対応ファイルが見つかりません');return}
+  const existing=await dbAll();let added=0,skipped=0;
+  for(const b of incoming){
+   let duplicate=false;
+   for(const old of existing){if(await sameBookContent(old,b)){duplicate=true;break}}
+   if(duplicate){skipped++;continue}
+   await dbPut(b);
+   const check=await dbAll();
+   if(!check.some(saved=>saved.id===b.id))throw new Error('保存後の確認で漫画が見つかりません');
+   existing.push(b);added++;
+  }
+  await refresh();
+  const visibleCount=await dbAll();
+  books=visibleCount.sort((a,b)=>(b.added||0)-(a.added||0));
+  $('bookcount').textContent=books.length+'冊 · 端末内保存';
+  $('empty').classList.toggle('hidden',books.length>0);
+  renderShelf($('shelf'),books);
+  renderBulkBar();
+  const reading=books.filter(b=>b.lastRead).sort((a,b)=>b.lastRead-a.lastRead);
+  $('continueSection').classList.toggle('hidden',!reading.length);
+  renderShelf($('continueShelf'),reading.slice(0,3));
+  notify(added+'冊を保存・本棚に反映しました'+(skipped?'（同一ファイル内容の重複'+skipped+'冊はスキップ）':''));
+ }catch(e){
+  console.error('漫画の保存に失敗:',e);
+  const detail=(e&&((e.name?e.name+': ':'')+e.message))||'原因不明';
+  notify('保存失敗：'+detail.slice(0,90));
+ }
 }
 
 function chooseFolderFiles(fileList){const all=Array.from(fileList||[]);const supported=all.filter(f=>isImage(f)||isArchive(f)||isPdf(f));if(!supported.length){notify('対応ファイルが見つかりません');return}const groups=new Map();supported.forEach((f,i)=>{const path=f.webkitRelativePath||f.name;const parts=path.split('/');const group=isImage(f)?(parts.length>2?parts.slice(0,-1).join('/'):parts.length>1?parts[0]:'画像'):path;if(!groups.has(group))groups.set(group,[]);groups.get(group).push(i)});showModal(`<h2>追加するフォルダを選択</h2><p class="notice">フォルダにチェックすると、中のJPEGなどをまとめて選択できます。同じ内容の漫画は重複追加されません。</p><div class="modalrow"><button id="folderSelectAll">すべて選択</button><button id="folderSelectNone">すべて解除</button></div><div id="folderChoices" style="max-height:48vh;overflow:auto;margin-top:10px"></div><div class="modalrow"><button id="folderCancel">キャンセル</button><button class="primary" id="folderImport">選択したフォルダを追加</button></div>`);const list=$('folderChoices');let n=0;groups.forEach((indices,name)=>{const label=document.createElement('label');label.style.cssText='display:flex;align-items:flex-start;gap:10px;padding:12px 3px;border-bottom:1px solid var(--line);font-size:14px;overflow-wrap:anywhere';const cb=document.createElement('input');cb.type='checkbox';cb.checked=true;cb.dataset.group=String(n++);cb.style.cssText='margin-top:3px;flex-shrink:0';const info=document.createElement('span');const title=document.createElement('strong');title.textContent='📁 '+name;const detail=document.createElement('div');detail.className='notice';detail.style.margin='4px 0 0';detail.textContent=indices.length+'ファイル';info.append(title,detail);label.append(cb,info);list.appendChild(label);cb.addEventListener('change',()=>{label.style.opacity=cb.checked?'1':'.55'})});$('folderSelectAll').onclick=()=>list.querySelectorAll('input').forEach(x=>{x.checked=true;x.closest('label').style.opacity='1'});$('folderSelectNone').onclick=()=>list.querySelectorAll('input').forEach(x=>{x.checked=false;x.closest('label').style.opacity='.55'});$('folderCancel').onclick=hideModal;$('folderImport').onclick=()=>{const chosenIndices=[];Array.from(list.querySelectorAll('input:checked')).forEach(cb=>{const indices=Array.from(groups.values())[Number(cb.dataset.group)];chosenIndices.push(...indices)});const chosen=[...new Set(chosenIndices)].map(i=>supported[i]);hideModal();if(!chosen.length){notify('フォルダが選択されていません');return}importFiles(chosen)}}
