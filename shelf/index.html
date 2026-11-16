@@ -278,7 +278,7 @@ window.addEventListener('keydown',e=>{if($('reader').classList.contains('hidden'
 let scrollSaveTimer=null;
 $('readerBody').addEventListener('scroll',()=>{if(state.layout!=='scroll'||!activeBook)return;lastReaderScrollAt=Date.now();clearTimeout(scrollSaveTimer);scrollSaveTimer=setTimeout(()=>{const body=$('readerBody');const children=Array.from(body.children);let best=page,bestDistance=Infinity;for(let i=0;i<children.length;i++){const d=Math.abs(children[i].getBoundingClientRect().top-body.getBoundingClientRect().top);if(d<bestDistance){bestDistance=d;best=i}}if(best>=0&&best<pages.length){page=best;activeBook.page=page;activeBook.progress=Math.round((page+1)/pages.length*100);activeBook.lastRead=Date.now();dbPut(activeBook);$('pageCounter').textContent=(page+1)+' / '+pages.length;$('pageSlider').value=page;$('prevPage').disabled=page<=0;$('nextPage').disabled=page>=pages.length-1}},180)},{passive:true});
 ensureDB().then(refresh).catch(e=>{console.error(e);const msg='端末内保存を開始できませんでした：'+(e&&e.message||String(e)||'原因不明');$('offlineStatus').textContent=msg+'。保存データは削除していません。';$('offlineStatus').classList.remove('hidden');$('offlineStatus').style.whiteSpace='pre-wrap';$('toast').textContent=msg;$('toast').classList.remove('hidden');clearTimeout(toastTimer)});
-if('serviceWorker' in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('./service-worker.js').catch(console.warn);
+if('serviceWorker' in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.getRegistration('./').then(reg=>reg&&reg.unregister()).catch(console.warn);
 })();
 </script>
 </body></html>
