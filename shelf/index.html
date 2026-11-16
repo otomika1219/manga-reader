@@ -120,7 +120,16 @@ async function importFiles(list){
  try{
   notify('漫画を取り込んでいます…');
   const incoming=await filesToBooks(list);
-  if(!incoming.length){notify('対応ファイルが見つかりません');return}
+  if(!incoming.length){
+   const selected=Array.from(list||[]).map(f=>(f.name||'名前不明')+'（'+(f.type||'種類不明')+'）').join('、')||'選択ファイル情報なし';
+   const detail='選択したファイルを漫画として認識できませんでした。選択数：'+(list?list.length:0)+'件。ファイル情報：'+selected;
+   $('offlineStatus').textContent=detail;
+   $('offlineStatus').classList.remove('hidden');
+   $('offlineStatus').style.whiteSpace='pre-wrap';
+   showModal('<h2>ファイルを認識できませんでした</h2><p style="line-height:1.7;overflow-wrap:anywhere">'+escapeHTML(detail)+'</p><p class="notice">保存データは削除していません。この表示の内容を教えてください。</p><div class="modalrow"><button id="importEmptyDone" class="primary">閉じる</button></div>');
+   $('importEmptyDone').onclick=hideModal;
+   return
+  }
   const existing=await dbAll();let added=0,skipped=0;
   for(const b of incoming){
    let duplicate=false;
