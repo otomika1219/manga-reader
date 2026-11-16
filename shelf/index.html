@@ -144,7 +144,48 @@ async function importFiles(list){
  }
 }
 
-function chooseFolderFiles(fileList){const all=Array.from(fileList||[]);const supported=all.filter(f=>isImage(f)||isArchive(f)||isPdf(f));if(!supported.length){notify('対応ファイルが見つかりません');return}const groups=new Map();supported.forEach((f,i)=>{const path=f.webkitRelativePath||f.name;const parts=path.split('/');const group=isImage(f)?(parts.length>2?parts.slice(0,-1).join('/'):parts.length>1?parts[0]:'画像'):path;if(!groups.has(group))groups.set(group,[]);groups.get(group).push(i)});showModal(`<h2>追加するフォルダを選択</h2><p class="notice">フォルダにチェックすると、中のJPEGなどをまとめて選択できます。同じ内容の漫画は重複追加されません。</p><div class="modalrow"><button id="folderSelectAll">すべて選択</button><button id="folderSelectNone">すべて解除</button></div><div id="folderChoices" style="max-height:48vh;overflow:auto;margin-top:10px"></div><div class="modalrow"><button id="folderCancel">キャンセル</button><button class="primary" id="folderImport">選択したフォルダを追加</button></div>`);const list=$('folderChoices');let n=0;groups.forEach((indices,name)=>{const label=document.createElement('label');label.style.cssText='display:flex;align-items:flex-start;gap:10px;padding:12px 3px;border-bottom:1px solid var(--line);font-size:14px;overflow-wrap:anywhere';const cb=document.createElement('input');cb.type='checkbox';cb.checked=true;cb.dataset.group=String(n++);cb.style.cssText='margin-top:3px;flex-shrink:0';const info=document.createElement('span');const title=document.createElement('strong');title.textContent='📁 '+name;const detail=document.createElement('div');detail.className='notice';detail.style.margin='4px 0 0';detail.textContent=indices.length+'ファイル';info.append(title,detail);label.append(cb,info);list.appendChild(label);cb.addEventListener('change',()=>{label.style.opacity=cb.checked?'1':'.55'})});$('folderSelectAll').onclick=()=>list.querySelectorAll('input').forEach(x=>{x.checked=true;x.closest('label').style.opacity='1'});$('folderSelectNone').onclick=()=>list.querySelectorAll('input').forEach(x=>{x.checked=false;x.closest('label').style.opacity='.55'});$('folderCancel').onclick=hideModal;$('folderImport').onclick=()=>{const chosenIndices=[];Array.from(list.querySelectorAll('input:checked')).forEach(cb=>{const indices=Array.from(groups.values())[Number(cb.dataset.group)];chosenIndices.push(...indices)});const chosen=[...new Set(chosenIndices)].map(i=>supported[i]);hideModal();if(!chosen.length){notify('フォルダが選択されていません');return}importFiles(chosen)}}
+function chooseFolderFiles(fileList){
+ const all=Array.from(fileList||[]);
+ const supported=all.filter(f=>isImage(f)||isArchive(f)||isPdf(f));
+ if(!supported.length){notify('対応ファイルが見つかりません');return}
+ const groups=new Map();
+ supported.forEach((f,i)=>{
+  const path=f.webkitRelativePath||f.name,parts=path.split('/');
+  const group=isImage(f)?(parts.length>2?parts.slice(0,-1).join('/'):parts.length>1?parts[0]:'画像'):path;
+  if(!groups.has(group))groups.set(group,[]);
+  groups.get(group).push(i);
+ });
+ showModal(`<h2>追加するファイルを選択</h2><p class="notice">フォルダ名のチェックでまとめて選択、各ファイル名のチェックで1つずつ選択できます。チェックしたファイルだけ追加します。</p><div class="modalrow"><button id="folderSelectAll">すべて選択</button><button id="folderSelectNone">すべて解除</button></div><div id="folderChoices" style="max-height:48vh;overflow:auto;margin-top:10px"></div><p id="folderSelectedCount" class="notice">選択中：${supported.length}ファイル</p><div class="modalrow"><button id="folderCancel">キャンセル</button><button class="primary" id="folderImport">選択したファイルを追加</button></div>`);
+ const list=$('folderChoices');
+ function updateCount(){const n=list.querySelectorAll('input.fileChoice:checked').length;$('folderSelectedCount').textContent='選択中：'+n+'ファイル';$('folderImport').disabled=n===0;list.querySelectorAll('.folderGroup').forEach(row=>{const boxes=Array.from(row.querySelectorAll('input.fileChoice'));const parent=row.querySelector('input.folderChoice');const checked=boxes.filter(x=>x.checked).length;parent.checked=checked===boxes.length;parent.indeterminate=checked>0&&checked<boxes.length;row.style.opacity=checked?'1':'.65'})}
+ let groupIndex=0;
+ groups.forEach((indices,name)=>{
+  const row=document.createElement('div');row.className='folderGroup';row.style.cssText='padding:8px 0;border-bottom:1px solid var(--line)';
+  const head=document.createElement('label');head.style.cssText='display:flex;align-items:center;gap:9px;padding:5px 3px;font-size:14px;font-weight:700;overflow-wrap:anywhere';
+  const parent=document.createElement('input');parent.type='checkbox';parent.className='folderChoice';parent.checked=true;parent.style.flexShrink='0';
+  const title=document.createElement('span');title.textContent='📁 '+name+'（'+indices.length+'ファイル）';head.append(parent,title);row.appendChild(head);
+  const children=document.createElement('div');children.style.cssText='padding-left:27px';
+  indices.forEach(i=>{
+   const f=supported[i],label=document.createElement('label');label.style.cssText='display:flex;align-items:flex-start;gap:9px;padding:7px 3px;font-size:13px;overflow-wrap:anywhere';
+   const cb=document.createElement('input');cb.type='checkbox';cb.className='fileChoice';cb.dataset.index=String(i);cb.checked=true;cb.style.cssText='margin-top:3px;flex-shrink:0';
+   const nameSpan=document.createElement('span');nameSpan.textContent=f.name;
+   label.append(cb,nameSpan);children.appendChild(label);cb.addEventListener('change',updateCount);
+  });
+  row.appendChild(children);list.appendChild(row);
+  parent.addEventListener('change',()=>{children.querySelectorAll('input.fileChoice').forEach(cb=>cb.checked=parent.checked);updateCount()});
+  groupIndex++;
+ });
+ $('folderSelectAll').onclick=()=>{list.querySelectorAll('input').forEach(x=>x.checked=true);updateCount()};
+ $('folderSelectNone').onclick=()=>{list.querySelectorAll('input').forEach(x=>x.checked=false);updateCount()};
+ $('folderCancel').onclick=hideModal;
+ $('folderImport').onclick=()=>{
+  const chosen=Array.from(list.querySelectorAll('input.fileChoice:checked')).map(cb=>supported[Number(cb.dataset.index)]);
+  hideModal();
+  if(!chosen.length){notify('ファイルが選択されていません');return}
+  importFiles(chosen);
+ };
+ updateCount();
+}
 function coverURL(b){const it=b.items?.[b.coverIndex||0];if(!it)return '';const blob=itemBlob(it);if(blob)return URL.createObjectURL(blob);return ''}
 function card(b){const el=document.createElement('div');el.className='book';const c=document.createElement('div');c.className='cover';const url=coverURL(b);if(url){const im=document.createElement('img');im.src=url;im.alt='';c.appendChild(im)}else{const p=document.createElement('div');p.className='placeholder';p.textContent=b.name;c.appendChild(p)}const n=document.createElement('div');n.className='bookname';n.textContent=b.name;const m=document.createElement('div');m.className='bookmeta';m.textContent=(b.total||b.items?.length||'—')+'ページ';const pr=document.createElement('div');pr.className='progress';const sp=document.createElement('span');sp.style.width=Math.max(0,Math.min(100,b.progress||0))+'%';pr.appendChild(sp);const mark=document.createElement('div');mark.className='selectMark'+(selectionMode?' visible':'')+(selectedBookIds.has(b.id)?' checked':'');mark.textContent=selectedBookIds.has(b.id)?'✓':'';el.append(c,n,m,pr,mark);el.classList.toggle('selected',selectedBookIds.has(b.id));el.addEventListener('click',()=>{if(selectionMode){toggleSelected(b.id);return}openBook(b.id)});el.addEventListener('contextmenu',e=>{e.preventDefault();if(selectionMode)toggleSelected(b.id);else bookOptions(b)});return el}
 function renderBulkBar(){const bar=$('bulkBar');if(!bar)return;bar.classList.toggle('hidden',!selectionMode);$('selectedCount').textContent=selectedBookIds.size+'冊選択中';$('selectAllBooks').textContent=books.length>0&&selectedBookIds.size===books.length?'選択解除':'すべて選択';$('deleteSelectedBooks').disabled=selectedBookIds.size===0}
