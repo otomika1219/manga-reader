@@ -145,7 +145,12 @@ async function importFiles(list){
  }catch(e){
   console.error('漫画の保存に失敗:',e);
   const detail=(e&&((e.name?e.name+': ':'')+e.message))||'原因不明';
-  notify('保存失敗：'+detail.slice(0,90));
+  const message='漫画の追加に失敗しました：'+detail+'。既存の保存データは削除していません。';
+  $('offlineStatus').textContent=message;
+  $('offlineStatus').classList.remove('hidden');
+  $('offlineStatus').style.whiteSpace='pre-wrap';
+  showModal('<h2>漫画を追加できませんでした</h2><p style="line-height:1.7;overflow-wrap:anywhere">'+escapeHTML(detail)+'</p><p class="notice">保存に失敗した原因を確認するため、この表示を残しています。既存の保存データは削除していません。</p><div class="modalrow"><button id="importErrorDone" class="primary">閉じる</button></div>');
+  $('importErrorDone').onclick=hideModal;
  }
 }
 
