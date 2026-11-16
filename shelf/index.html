@@ -124,10 +124,10 @@ async function filesToBooks(fileList){
    imageFiles.forEach(f=>{const path=f.webkitRelativePath||f.name;const parts=path.split('/');const group=parts.length>2?parts.slice(0,-1).join('/'):parts[0]||'画像';if(!groups.has(group))groups.set(group,[]);groups.get(group).push(f)});
    for(const [name,arr] of groups){arr.sort((a,b)=>natural(a.name,b.name));const items=[];for(const f of arr)items.push({name:f.name,blob:storedBytes(f),type:fileType(f)});out.push(makeBook(name.split('/').pop(),'images',items));}
  } else if(imageFiles.length){
-   imageFiles.sort((a,b)=>natural(a.name,b.name));const items=[];for(const f of imageFiles)items.push({name:f.name,bytes:await storedBytes(f),type:fileType(f)});out.push(makeBook(imageFiles.length===1?safeName(imageFiles[0].name):'画像まとめ','images',items));
+   imageFiles.sort((a,b)=>natural(a.name,b.name));const items=[];for(const f of imageFiles)items.push({name:f.name,blob:storedBytes(f),type:fileType(f)});out.push(makeBook(imageFiles.length===1?safeName(imageFiles[0].name):'画像まとめ','images',items));
  }
- for(const f of archives)out.push(makeBook(safeName(f.name),'archive',[{name:f.name,bytes:await storedBytes(f),type:fileType(f)}]));
- for(const f of pdfs)out.push(makeBook(safeName(f.name),'pdf',[{name:f.name,bytes:await storedBytes(f),type:fileType(f)}]));
+ for(const f of archives)out.push(makeBook(safeName(f.name),'archive',[{name:f.name,blob:storedBytes(f),type:fileType(f)}]));
+ for(const f of pdfs)out.push(makeBook(safeName(f.name),'pdf',[{name:f.name,blob:storedBytes(f),type:fileType(f)}]));
  if(unsupported.length)notify('未対応のファイルを'+unsupported.length+'件スキップしました');
  return out;
 }
