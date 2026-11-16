@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>漫画リーダーの修復</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#111;color:#f5f5f5;padding:24px;line-height:1.7;max-width:620px;margin:auto}
+button,a{display:inline-block;background:#fff;color:#111;border:0;border-radius:10px;padding:13px 18px;font-size:16px;font-weight:600;text-decoration:none}
+#status{white-space:pre-wrap;overflow-wrap:anywhere;background:#222;padding:14px;border-radius:10px;margin:18px 0}
+small{color:#bbb}
+</style>
+</head>
+<body>
+<h1>漫画リーダーの修復</h1>
+<p>Safariの再読み込みが止まらない問題を直すため、漫画リーダー専用のキャッシュ・サービスワーカー・端末内データベースを初期化します。</p>
+<p><strong>注意：</strong>この操作で本棚の登録、漫画データ、しおり、読書履歴が消える場合があります。元に戻せません。</p>
+<button id="run">修復を実行する</button>
+<div id="status">まだ実行していません。</div>
+<p id="next" hidden><a href="./?repair=1">漫画リーダーを開く</a></p>
+<script>
+const statusEl=document.getElementById('status');
+document.getElementById('run').addEventListener('click',async()=>{
+ const btn=document.getElementById('run');btn.disabled=true;
+ const lines=[];
+ const say=s=>{lines.push(s);statusEl.textContent=lines.join('\n')};
+ try{
+  if('serviceWorker' in navigator){
+   const regs=await navigator.serviceWorker.getRegistrations();
+   const prefix=location.origin+'/manga-reader/shelf/';
+   for(const reg of regs){if(reg.scope.startsWith(prefix)){await reg.unregister();say('漫画リーダーのサービスワーカーを解除しました。')}}
+  }
+ }catch(e){say('サービスワーカー解除：'+(e.message||e))}
+ try{
+  if('caches' in window){
+   const names=await caches.keys();
+   for(const name of names){if(name.startsWith('manga-shelf-shell-')){await caches.delete(name);say('専用キャッシュを削除しました。')}}
+  }
+ }catch(e){say('キャッシュ処理：'+(e.message||e))}
+ try{
+  await new Promise((resolve,reject)=>{
+   const req=indexedDB.deleteDatabase('manga-shelf-db-v1');
+   req.onsuccess=()=>{say('端末内の漫画データベースを初期化しました。');resolve()};
+   req.onerror=()=>reject(req.error||new Error('削除できませんでした'));
+   req.onblocked=()=>say('データベースが別の画面で使用中です。Safariの漫画リーダーのタブを閉じてから、もう一度このページを開いてください。');
+  });
+ }catch(e){say('データベース初期化：'+(e.message||e))}
+ say('修復処理が終了しました。');
+ document.getElementById('next').hidden=false;
+ btn.textContent='修復済み';
+});
+</script>
+</body>
+</html>
