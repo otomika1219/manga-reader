@@ -267,13 +267,13 @@ function releasePdfResources(){
 async function materializePages(b,token){
  if(token!==openBookGeneration)return false;
  pages=[];releasePdfResources();
- if(b.type==='images'){pages=b.items.map((it,i)=>({name:it.name,blob:itemBlob(it),index:i}));return}
+ if(b.type==='images'){pages=b.items.map((it,i)=>({name:it.name,blob:itemBlob(it),index:i}));return token===openBookGeneration}
  if(b.type==='archive'){
   const file=itemBlob(b.items[0]);
   if(!window.JSZip)throw Error('ZIPライブラリが未読み込みです。ネット接続中に開き直してください');
   const zip=await JSZip.loadAsync(file);if(token!==openBookGeneration)return false;const entries=Object.values(zip.files).filter(x=>!x.dir&&!x.name.split('/').pop().startsWith('._')&&!x.name.split('/').includes('__MACOSX')&&/\.(jpe?g|png|gif|webp|avif|bmp)$/i.test(x.name)).sort((a,b)=>natural(a.name,b.name));
   for(const ent of entries){const blob=await ent.async('blob');if(token!==openBookGeneration)return false;pages.push({name:ent.name,blob:blob.type?blob:new Blob([blob],{type:mime(ent.name)}),index:pages.length})}
-  b.total=pages.length;await dbPut(b);if(!pages.length)throw Error('ZIP内に画像がありません');return
+  b.total=pages.length;await dbPut(b);if(token!==openBookGeneration)return false;if(!pages.length)throw Error('ZIP内に画像がありません');return true
  }
  if(b.type==='pdf'){
   const lib=window.__pdfjs;if(!lib)throw Error('PDF機能の読み込み中です。数秒後にもう一度お試しください');
