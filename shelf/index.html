@@ -136,7 +136,7 @@ async function importFiles(list){
   const reading=books.filter(b=>b.lastRead).sort((a,b)=>b.lastRead-a.lastRead);
   $('continueSection').classList.toggle('hidden',!reading.length);
   renderShelf($('continueShelf'),reading.slice(0,3));
-  notify(added+'冊を保存・本棚に反映しました'+(skipped?'（同一ファイル内容の重複'+skipped+'冊はスキップ）':''));
+  showModal(`<h2>追加結果の確認</h2><p style="font-size:16px;line-height:1.8">✅ 保存処理が完了しました。</p><div style="background:var(--panel2);border-radius:12px;padding:14px;line-height:2"><div>新しく追加：<strong>${added}冊</strong></div><div>重複のためスキップ：<strong>${skipped}冊</strong></div><div>本棚の合計：<strong>${books.length}冊</strong></div></div><p class="notice">追加した漫画はこのiPhoneのブラウザ内に保存されています。重複した漫画は二重登録していません。</p><div class="modalrow"><button id="importDone" class="primary">確認して本棚へ</button><button id="importMore">続けて追加</button></div>`);$('importDone').onclick=hideModal;$('importMore').onclick=()=>{hideModal();$('addFiles').click()};
  }catch(e){
   console.error('漫画の保存に失敗:',e);
   const detail=(e&&((e.name?e.name+': ':'')+e.message))||'原因不明';
