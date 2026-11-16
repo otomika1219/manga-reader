@@ -81,7 +81,7 @@ if(window.__mangaRepairMode)return;
 'use strict';
 const $=id=>document.getElementById(id);
 const DB_NAME='manga-shelf-db-v1', STORE='books';
-let db, dbReady=null, books=[], activeBook=null, page=0, pages=[], zoom=1, pdfDoc=null, activeTab='shelf', toastTimer, selectionMode=false, pageObserver=null, lastReaderScrollAt=0, scrollLoadQueue=[], scrollLoadsActive=0;
+let db, dbReady=null, books=[], activeBook=null, page=0, pages=[], zoom=1, pdfDoc=null, pdfObjectUrl=null, activeTab='shelf', toastTimer, selectionMode=false, pageObserver=null, lastReaderScrollAt=0, scrollLoadQueue=[], scrollLoadsActive=0;
 const selectedBookIds=new Set();
  let shelfSort=localStorage.getItem('manga-shelf-sort')||'added';
  let shelfQuery='',favoritesOnly=false;
@@ -258,8 +258,13 @@ function hideModal(){$('modalBack').classList.add('hidden')}
 function bookOptions(b){showModal(`<h2>${escapeHTML(b.name)}</h2><p class="notice">本棚の操作</p><label class="field">タイトル<input id="renameInput" value="${escapeAttr(b.name)}"></label><div class="modalrow"><button id="renameBtn">タイトル変更</button><button id="favBtn">${b.favorite?'★ お気に入り解除':'☆ お気に入り'}</button></div><div class="modalrow"><button id="deleteBook" style="color:#ff9b9b">本棚から削除</button><button id="cancelModal">閉じる</button></div><p class="notice">削除すると、このアプリ内に保存した漫画データも削除されます。</p>`);$('renameBtn').onclick=async()=>{b.name=$('renameInput').value.trim()||b.name;await dbPut(b);hideModal();refresh()};$('favBtn').onclick=async()=>{b.favorite=!b.favorite;await dbPut(b);hideModal();refresh()};$('deleteBook').onclick=async()=>{if(confirm('この漫画を本棚と端末内保存から削除しますか？')){await dbDelete(b.id);hideModal();refresh();notify('削除しました')}};$('cancelModal').onclick=hideModal}
 function escapeHTML(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function escapeAttr(s){return escapeHTML(s)}
+function releasePdfResources(){
+ const oldDoc=pdfDoc;pdfDoc=null;
+ if(oldDoc){try{const task=oldDoc.destroy();if(task&&typeof task.catch==='function')task.catch(()=>{})}catch(_){}}
+ if(pdfObjectUrl){try{URL.revokeObjectURL(pdfObjectUrl)}catch(_){}pdfObjectUrl=null}
+}
 async function materializePages(b){
- pages=[];pdfDoc=null;
+ pages=[];releasePdfResources();
  if(b.type==='images'){pages=b.items.map((it,i)=>({name:it.name,blob:itemBlob(it),index:i}));return}
  if(b.type==='archive'){
   const file=itemBlob(b.items[0]);
@@ -270,7 +275,9 @@ async function materializePages(b){
  }
  if(b.type==='pdf'){
   const lib=window.__pdfjs;if(!lib)throw Error('PDF機能の読み込み中です。数秒後にもう一度お試しください');
-  pdfDoc=await lib.getDocument({data:await itemBlob(b.items[0]).arrayBuffer()}).promise;
+  const sourceBlob=itemBlob(b.items[0]);if(!sourceBlob)throw Error('PDFデータを読み込めません');
+  pdfObjectUrl=URL.createObjectURL(sourceBlob);
+  try{pdfDoc=await lib.getDocument({url:pdfObjectUrl}).promise}catch(e){releasePdfResources();throw e}
   b.total=pdfDoc.numPages;pages=Array.from({length:pdfDoc.numPages},(_,i)=>({name:'ページ '+(i+1),index:i}));await dbPut(b);return
  }
 }
@@ -310,7 +317,7 @@ async function renderPage(){
  activeBook.page=page;activeBook.total=count;activeBook.progress=Math.round((page+1)/count*100);activeBook.lastRead=Date.now();activeBook.direction=state.direction;activeBook.layout=state.layout;await dbPut(activeBook);
 }
 async function movePage(delta){if(!activeBook)return;let next;if(state.layout==='spread'){next=delta>0?(page===0?1:page+2):(page<=1?0:page-2)}else{next=page+delta}next=Math.max(0,Math.min(pages.length-1,next));if(next===page)return;page=next;await renderPage()}
-function closeReader(){if(state.layout==='scroll'&&!confirm('縦スクロールの読書を終了して本棚に戻りますか？'))return;if(activeBook){activeBook.page=page;activeBook.lastRead=Date.now();dbPut(activeBook)}$('reader').classList.add('hidden');document.querySelectorAll('.bottomnav').forEach(x=>x.classList.remove('hidden'));refresh()}
+function closeReader(){if(state.layout==='scroll'&&!confirm('縦スクロールの読書を終了して本棚に戻りますか？'))return;if(activeBook){activeBook.page=page;activeBook.lastRead=Date.now();dbPut(activeBook)}releasePdfResources();$('reader').classList.add('hidden');document.querySelectorAll('.bottomnav').forEach(x=>x.classList.remove('hidden'));refresh()}
 function toggleBookmark(){if(!activeBook)return;const found=activeBook.bookmarks.find(x=>x===page);if(found!==undefined){activeBook.bookmarks=activeBook.bookmarks.filter(x=>x!==page);notify('しおりを外しました')}else{activeBook.bookmarks.push(page);activeBook.bookmarks.sort((a,b)=>a-b);notify('しおりを保存しました')}dbPut(activeBook)}
 function showBookmarks(){const all=[];books.forEach(b=>(b.bookmarks||[]).forEach(p=>all.push({b,p})));$('historySection').classList.remove('hidden');$('historyShelf').innerHTML='';if(!all.length){$('historyShelf').innerHTML='<div class="empty" style="grid-column:1/-1">しおりはまだありません。読書中に🔖を押してください。</div>';return}all.forEach(({b,p})=>{const el=card(b);el.querySelector('.bookmeta').textContent='しおり：'+(p+1)+'ページ';el.onclick=()=>openBook(b.id,false).then(()=>{page=p;renderPage()});$('historyShelf').appendChild(el)})}
 $('shelfSort').value=shelfSort;$('shelfSort').onchange=e=>{shelfSort=e.target.value;localStorage.setItem('manga-shelf-sort',shelfSort);refresh()};$('shelfSearch').oninput=e=>{shelfQuery=e.target.value;renderMainShelf()};$('favoritesOnly').onclick=()=>{favoritesOnly=!favoritesOnly;renderMainShelf()};$('addFiles').onclick=()=>{showModal('<h2>漫画を追加</h2><p class="notice">追加方法を選んでください。</p><div class="modalrow"><button id="chooseFiles" class="primary">📄 ファイルを選ぶ</button><button id="chooseFolder">▤ フォルダを選ぶ</button></div><div class="modalrow"><button id="cancelAdd">キャンセル</button></div>');$('chooseFiles').onclick=()=>{hideModal();$('fileInput').click()};$('chooseFolder').onclick=()=>{hideModal();$('folderInput').click()};$('cancelAdd').onclick=hideModal};$('selectBooksBtn').onclick=toggleSelectionMode;$('selectAllBooks').onclick=()=>{if(selectedBookIds.size===books.length)selectedBookIds.clear();else books.forEach(b=>selectedBookIds.add(b.id));renderShelf($('shelf'),books);renderBulkBar()};$('deleteSelectedBooks').onclick=deleteSelected;$('cancelSelectBooks').onclick=toggleSelectionMode;
