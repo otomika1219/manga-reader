@@ -310,7 +310,7 @@ async function renderPage(){
  } else if(state.layout==='spread'){
   const spread=document.createElement('div');spread.className='spread';
   const pair=page===0?(state.direction==='rtl'?[null,0]:[0,null]):(state.direction==='rtl'?[page+1,page]:[page+1,page]);
-  for(const i of pair){if(i!==null&&i<count){const el=await renderOne(i);if(el){el.style.transform='none';el.style.maxWidth='50%';el.style.width='50%';el.style.height='100%';el.style.maxHeight='100%';spread.appendChild(el)}else{const blank=document.createElement('div');blank.style.width='50%';blank.style.height='100%';spread.appendChild(blank)}}else{const blank=document.createElement('div');blank.style.width='50%';blank.style.height='100%';spread.appendChild(blank)}}
+  for(let j=0;j<pair.length;j++){const i=pair[j];if(i!==null&&i<count){const el=await renderOne(i);if(el){el.style.transform='none';el.style.maxWidth='50%';el.style.width='50%';el.style.height='100%';el.style.maxHeight='100%';el.style.objectFit='contain';el.style.objectPosition=j===0?'right center':'left center';spread.appendChild(el)}else{const blank=document.createElement('div');blank.style.width='50%';blank.style.height='100%';spread.appendChild(blank)}}else{const blank=document.createElement('div');blank.style.width='50%';blank.style.height='100%';spread.appendChild(blank)}}
   body.appendChild(spread)
  } else {const el=await renderOne(page);if(el){el.style.maxWidth='100%';el.style.maxHeight='100%';body.appendChild(el)}}
  $('pageCounter').textContent=(page+1)+' / '+count;$('pageSlider').max=Math.max(0,count-1);$('pageSlider').value=page;$('prevPage').disabled=page<=0;$('nextPage').disabled=page>=count-1;
