@@ -153,7 +153,14 @@ async function sameBookContent(a,b){
  }
  return true;
 }
+let importInProgress=false;
 async function importFiles(list){
+ if(importInProgress){notify('前の追加処理が終わるまでお待ちください');return}
+ importInProgress=true;
+ const addButton=$('addFiles'),filePicker=$('fileInput'),folderPicker=$('folderInput');
+ if(addButton)addButton.disabled=true;
+ if(filePicker)filePicker.disabled=true;
+ if(folderPicker)folderPicker.disabled=true;
  try{
   notify('漫画を取り込んでいます…');
   const incoming=await filesToBooks(list);
@@ -183,6 +190,11 @@ async function importFiles(list){
   console.error('漫画の保存に失敗:',e);
   const detail=(e&&((e.name?e.name+': ':'')+e.message))||'原因不明';
   notify('保存失敗：'+detail.slice(0,90));
+ }finally{
+  importInProgress=false;
+  if(addButton)addButton.disabled=false;
+  if(filePicker)filePicker.disabled=false;
+  if(folderPicker)folderPicker.disabled=false;
  }
 }
 
