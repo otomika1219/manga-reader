@@ -220,14 +220,14 @@ async function materializePages(b){
  if(b.type==='pdf'){
   const lib=window.__pdfjs;if(!lib)throw Error('PDF機能の読み込み中です。数秒後にもう一度お試しください');
   const pdfBlob=itemBlob(b.items[0]);if(!pdfBlob)throw Error('PDFデータが見つかりません');pdfSourceUrl=URL.createObjectURL(pdfBlob);pdfDoc=await lib.getDocument({url:pdfSourceUrl}).promise;
-  b.total=pdfDoc.numPages;pages=Array.from({length:pdfDoc.numPages},(_,i)=>({name:'ページ '+(i+1),index:i}));await dbPut(b);return
+  b.total=pdfDoc.numPages;pages=Array.from({length:pdfDoc.numPages},(_,i)=>({name:'ページ '+(i+1),index:i}));return
  }
 }
 function mime(n){const ext=n.split('.').pop().toLowerCase();return ({jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',gif:'image/gif',webp:'image/webp',bmp:'image/bmp',avif:'image/avif'})[ext]||'application/octet-stream'}
 async function openBook(id, startAtSaved=true){
  const b=books.find(x=>x.id===id)||await new Promise(async r=>r((await dbAll()).find(x=>x.id===id)));if(!b)return;
  try{activeBook=b;state.direction=b.direction||'rtl';state.layout=b.layout||'single';zoom=1;await materializePages(b);if(!pages.length){notify('この漫画には表示できるページがありません');return}
- page=startAtSaved?Math.min(b.page||0,pages.length-1):0;$('readerTitle').textContent=b.name;$('direction').value=state.direction;$('layout').value=state.layout;setFullscreen(false);$('reader').classList.remove('hidden');await renderPage();document.querySelectorAll('.bottomnav').forEach(x=>x.classList.add('hidden'));if(b.type==='pdf'&&!b.coverBlob)makePdfCover(b).catch(e=>console.warn('PDF表紙の作成に失敗:',e))}
+ page=startAtSaved?Math.min(b.page||0,pages.length-1):0;$('readerTitle').textContent=b.name;$('direction').value=state.direction;$('layout').value=state.layout;setFullscreen(false);$('reader').classList.remove('hidden');await renderPage();document.querySelectorAll('.bottomnav').forEach(x=>x.classList.add('hidden'));if(b.type==='pdf')makePdfCover(b).catch(e=>console.warn('PDF表紙の作成に失敗:',e))}
  catch(e){console.error(e);notify(e.message||'漫画を開けませんでした')}
 }
 async function renderOne(idx,scaleOverride){
