@@ -170,18 +170,18 @@ async function importFiles(list){
   notify('漫画を取り込んでいます…');
   const incoming=await filesToBooks(list);
   if(!incoming.length){notify('対応ファイルが見つかりません');return}
-  const existing=await dbAll();let added=0,skipped=0;
+  const existing=await dbAll();let added=0,skipped=0;const addedIds=[];
   for(const b of incoming){
    let duplicate=false;
    for(const old of existing){if(await sameBookContent(old,b)){duplicate=true;break}}
    if(duplicate){skipped++;continue}
    await dbPut(b);
-   existing.push(b);added++;
+   existing.push(b);addedIds.push(b.id);added++;
   }
   await refresh();
   // refresh() reloads the saved shelf once after the whole batch, avoiding a full database read per book.
   const savedIds=new Set(books.map(saved=>saved.id));
-  if(incoming.some(b=>!existing.some(x=>x.id===b.id)||(!savedIds.has(b.id)&&!existing.some(x=>x.id===b.id&&added===0))))throw new Error('保存後の確認で本棚を更新できませんでした');
+  if(addedIds.some(id=>!savedIds.has(id)))throw new Error('保存後の確認で漫画が見つかりません');
   $('bookcount').textContent=books.length+'冊 · 端末内保存';
   $('empty').classList.toggle('hidden',books.length>0);
   renderMainShelf();
