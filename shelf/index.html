@@ -312,8 +312,9 @@ async function renderOne(idx,scaleOverride,token=openBookGeneration){
  try{
   await new Promise((resolve,reject)=>{
    let settled=false,fallbackTried=false;
-   const timer=setTimeout(()=>finish(Error('JPEGの読み込みがタイムアウトしました：'+(item.name||'ページ'))),12000);
-   function finish(err){if(settled)return;settled=true;clearTimeout(timer);im.onload=null;im.onerror=null;err?reject(err):resolve()}
+   const fallbackTimer=setTimeout(()=>tryDataUrl(),3000);
+   const timer=setTimeout(()=>finish(Error('JPEGの読み込みがタイムアウトしました：'+(item.name||'ページ'))),15000);
+   function finish(err){if(settled)return;settled=true;clearTimeout(timer);clearTimeout(fallbackTimer);im.onload=null;im.onerror=null;err?reject(err):resolve()}
    function tryDataUrl(){
     if(fallbackTried||settled)return;fallbackTried=true;
     const reader=new FileReader();
