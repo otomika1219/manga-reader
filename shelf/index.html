@@ -129,7 +129,7 @@ async function filesToBooks(fileList){
    imageFiles.sort((a,b)=>natural(a.name,b.name));const items=[];for(const f of imageFiles)items.push({name:f.name,bytes:await storedImageBytes(f),type:fileType(f)});out.push(makeBook(imageFiles.length===1?safeName(imageFiles[0].name):'画像まとめ','images',items));
  }
  for(const f of archives)out.push(makeBook(safeName(f.name),'archive',[{name:f.name,blob:storedBlob(f),type:fileType(f)}]));
- for(const f of pdfs)out.push(makeBook(safeName(f.name),'pdf',[{name:f.name,blob:storedBytes(f),type:fileType(f)}]));
+ for(const f of pdfs)out.push(makeBook(safeName(f.name),'pdf',[{name:f.name,blob:storedBlob(f),type:fileType(f)}]));
  if(unsupported.length)notify('未対応のファイルを'+unsupported.length+'件スキップしました');
  return out;
 }
@@ -197,11 +197,7 @@ async function importFiles(list){
     if(duplicate){skipped++;continue}
     await dbPut(b);existing.push(b);addedIds.push(b.id);added++;
    }
-   if(duplicate){skipped++;continue}
-   await dbPut(b);
-   existing.push(b);addedIds.push(b.id);added++;
-  }
-  await refresh();
+   await refresh();
   // refresh() reloads the saved shelf once after the whole batch, avoiding a full database read per book.
   const savedIds=new Set(books.map(saved=>saved.id));
   if(addedIds.some(id=>!savedIds.has(id)))throw new Error('保存後の確認で漫画が見つかりません');
