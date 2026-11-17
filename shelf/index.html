@@ -153,11 +153,18 @@ async function sameBookContent(a,b){
  for(let i=0;i<aa.length;i++){
   if(aa[i].name!==bb[i].name||itemByteLength(aa[i])!==itemByteLength(bb[i]))return false;
  }
- for(let i=0;i<aa.length;i++){
-  const x=await itemBytesForCompare(aa[i]),y=await itemBytesForCompare(bb[i]);
-  for(let j=0;j<x.length;j++)if(x[j]!==y[j])return false;
+ try{
+  for(let i=0;i<aa.length;i++){
+   const x=await itemBytesForCompare(aa[i]),y=await itemBytesForCompare(bb[i]);
+   if(x.length!==y.length)return false;
+   for(let j=0;j<x.length;j++)if(x[j]!==y[j])return false;
+  }
+  return true;
+ }catch(e){
+  // A previously stored Safari Blob may be unreadable. Do not block re-importing a fresh copy.
+  console.warn('既存漫画データの重複確認に失敗しました。新しいコピーとして追加します。',e);
+  return false;
  }
- return true;
 }
 let importInProgress=false;
 async function importFiles(list){
