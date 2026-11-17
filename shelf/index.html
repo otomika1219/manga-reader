@@ -273,7 +273,7 @@ async function materializePages(b,token){
   if(!window.JSZip)throw Error('ZIPライブラリが未読み込みです。ネット接続中に開き直してください');
   const zip=await JSZip.loadAsync(file);if(token!==openBookGeneration)return false;const entries=Object.values(zip.files).filter(x=>!x.dir&&!x.name.split('/').pop().startsWith('._')&&!x.name.split('/').includes('__MACOSX')&&/\.(jpe?g|png|gif|webp|avif|bmp)$/i.test(x.name)).sort((a,b)=>natural(a.name,b.name));
   for(const ent of entries){const blob=await ent.async('blob');if(token!==openBookGeneration)return false;pages.push({name:ent.name,blob:blob.type?blob:new Blob([blob],{type:mime(ent.name)}),index:pages.length})}
-  b.total=pages.length;await dbPut(b);if(token!==openBookGeneration)return false;if(!pages.length)throw Error('ZIP内に画像がありません');return true
+  b.total=pages.length;if(token!==openBookGeneration)return false;if(!pages.length)throw Error('ZIP内に画像がありません');return true
  }
  if(b.type==='pdf'){
   const lib=window.__pdfjs;if(!lib)throw Error('PDF機能の読み込み中です。数秒後にもう一度お試しください');
@@ -290,7 +290,7 @@ async function materializePages(b,token){
   }catch(e){if(token===openBookGeneration)releasePdfResources();throw e}
   finally{pdfData=null}
   if(token!==openBookGeneration)return false;
-  b.total=pdfDoc.numPages;pages=Array.from({length:pdfDoc.numPages},(_,i)=>({name:'ページ '+(i+1),index:i}));await dbPut(b);return token===openBookGeneration
+  b.total=pdfDoc.numPages;pages=Array.from({length:pdfDoc.numPages},(_,i)=>({name:'ページ '+(i+1),index:i}));return token===openBookGeneration
  }
 }
 function mime(n){const ext=n.split('.').pop().toLowerCase();return ({jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',gif:'image/gif',webp:'image/webp',bmp:'image/bmp',avif:'image/avif'})[ext]||'application/octet-stream'}
@@ -362,10 +362,10 @@ async function renderPage(token=openBookGeneration){
   body.appendChild(spread)
  } else {const el=await renderOne(page,undefined,token);if(token!==openBookGeneration)return;if(el){el.style.maxWidth='100%';el.style.maxHeight='100%';body.appendChild(el)}}
  $('pageCounter').textContent=(page+1)+' / '+count;$('pageSlider').max=Math.max(0,count-1);$('pageSlider').value=page;$('prevPage').disabled=page<=0;$('nextPage').disabled=page>=count-1;
- activeBook.page=page;activeBook.total=count;activeBook.progress=Math.round((page+1)/count*100);activeBook.lastRead=Date.now();activeBook.direction=state.direction;activeBook.layout=state.layout;await dbPut(activeBook);
+ activeBook.page=page;activeBook.total=count;activeBook.progress=Math.round((page+1)/count*100);activeBook.lastRead=Date.now();activeBook.direction=state.direction;activeBook.layout=state.layout;
 }
 async function movePage(delta){if(!activeBook)return;let next;if(state.layout==='spread'){next=delta>0?(page===0?1:page+2):(page<=1?0:page-2)}else{next=page+delta}next=Math.max(0,Math.min(pages.length-1,next));if(next===page)return;const previous=page;page=next;$('pageCounter').textContent=(page+1)+' / '+pages.length;$('pageSlider').value=page;try{await renderPage()}catch(e){console.error('Page navigation/render failed',e);page=previous;$('pageCounter').textContent=(page+1)+' / '+pages.length;$('pageSlider').value=page;notify(e&&e.message?'画像表示エラー：'+e.message:'ページの表示に失敗しました。もう一度お試しください')}}
-function closeReader(){openBookGeneration++;if(state.layout==='scroll'&&!confirm('縦スクロールの読書を終了して本棚に戻りますか？'))return;if(activeBook){activeBook.page=page;activeBook.lastRead=Date.now();dbPut(activeBook)}releasePdfResources();$('reader').classList.add('hidden');document.querySelectorAll('.bottomnav').forEach(x=>x.classList.remove('hidden'));refresh()}
+function closeReader(){openBookGeneration++;if(state.layout==='scroll'&&!confirm('縦スクロールの読書を終了して本棚に戻りますか？'))return;if(activeBook){activeBook.page=page;activeBook.lastRead=Date.now()}releasePdfResources();$('reader').classList.add('hidden');document.querySelectorAll('.bottomnav').forEach(x=>x.classList.remove('hidden'));refresh()}
 function toggleBookmark(){if(!activeBook)return;const found=activeBook.bookmarks.find(x=>x===page);if(found!==undefined){activeBook.bookmarks=activeBook.bookmarks.filter(x=>x!==page);notify('しおりを外しました')}else{activeBook.bookmarks.push(page);activeBook.bookmarks.sort((a,b)=>a-b);notify('しおりを保存しました')}dbPut(activeBook)}
 function showBookmarks(){const all=[];books.forEach(b=>(b.bookmarks||[]).forEach(p=>all.push({b,p})));$('historySection').classList.remove('hidden');$('historyShelf').innerHTML='';if(!all.length){$('historyShelf').innerHTML='<div class="empty" style="grid-column:1/-1">しおりはまだありません。読書中に🔖を押してください。</div>';return}all.forEach(({b,p})=>{const el=card(b);el.querySelector('.bookmeta').textContent='しおり：'+(p+1)+'ページ';el.onclick=()=>openBook(b.id,false).then(()=>{page=p;renderPage()});$('historyShelf').appendChild(el)})}
 $('shelfSort').value=shelfSort;$('shelfSort').onchange=e=>{shelfSort=e.target.value;localStorage.setItem('manga-shelf-sort',shelfSort);refresh()};$('shelfSearch').oninput=e=>{shelfQuery=e.target.value;renderMainShelf()};$('favoritesOnly').onclick=()=>{favoritesOnly=!favoritesOnly;renderMainShelf()};$('addFiles').onclick=()=>{showModal('<h2>漫画を追加</h2><p class="notice">追加方法を選んでください。</p><div class="modalrow"><button id="chooseFiles" class="primary">📄 ファイルを選ぶ</button><button id="chooseFolder">▤ フォルダを選ぶ</button></div><div class="modalrow"><button id="cancelAdd">キャンセル</button></div>');$('chooseFiles').onclick=()=>{hideModal();$('fileInput').click()};$('chooseFolder').onclick=()=>{hideModal();$('folderInput').click()};$('cancelAdd').onclick=hideModal};$('selectBooksBtn').onclick=toggleSelectionMode;$('selectAllBooks').onclick=()=>{if(selectedBookIds.size===books.length)selectedBookIds.clear();else books.forEach(b=>selectedBookIds.add(b.id));renderShelf($('shelf'),books);renderBulkBar()};$('deleteSelectedBooks').onclick=deleteSelected;$('cancelSelectBooks').onclick=toggleSelectionMode;
