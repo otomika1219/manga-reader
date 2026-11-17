@@ -305,7 +305,30 @@ async function renderOne(idx,scaleOverride,token=openBookGeneration){
  const item=pages[idx];if(!item||token!==openBookGeneration)return null;
  const doc=pdfDoc;
  if(doc){const p=await doc.getPage(idx+1);if(token!==openBookGeneration)return null;const v=p.getViewport({scale:(scaleOverride||1.5)*zoom});const c=document.createElement('canvas');c.width=v.width;c.height=v.height;const ctx=c.getContext('2d');await p.render({canvasContext:ctx,viewport:v}).promise;if(token!==openBookGeneration)return null;return c}
- let blob=item.blob;if(!(blob instanceof Blob)&&item.bytes){try{blob=new Blob([item.bytes],{type:item.type||mime(item.name)})}catch(_){blob=null}}if(!(blob instanceof Blob)||!blob.size){throw Error('画像データを読み込めません：'+(item.name||'ページ'))}const expectedType=mime(item.name);if((!blob.type||blob.type==='application/octet-stream')&&expectedType!=='application/octet-stream'){blob=blob.slice(0,blob.size,expectedType)}const url=URL.createObjectURL(blob);const im=document.createElement('img');im.className='pageimg';im.alt=item.name||'';im.dataset.objectUrl=url;im.style.transform=`scale(${zoom})`;try{await new Promise((resolve,reject)=>{let settled=false;const finish=(err)=>{if(settled)return;settled=true;clearTimeout(timer);im.onload=null;im.onerror=null;err?reject(err):resolve()};const timer=setTimeout(()=>finish(Error('JPEGの読み込みがタイムアウトしました：'+(item.name||'ページ'))),8000);im.onload=()=>finish();im.onerror=()=>finish(Error('画像をデコードできません：'+(item.name||'ページ')));im.src=url;if(im.complete&&im.naturalWidth>0)finish()});if(token!==openBookGeneration){URL.revokeObjectURL(url);return null}return im}catch(e){try{URL.revokeObjectURL(url)}catch(_){};console.error('Image failed to load',item.name,blob.type,blob.size,e);throw e}
+ let blob=item.blob;if(!(blob instanceof Blob)&&item.bytes){try{blob=new Blob([item.bytes],{type:item.type||mime(item.name)})}catch(_){blob=null}}
+ if(!(blob instanceof Blob)||!blob.size)throw Error('画像データを読み込めません：'+(item.name||'ページ'));
+ const expectedType=mime(item.name);if((!blob.type||blob.type==='application/octet-stream')&&expectedType!=='application/octet-stream')blob=blob.slice(0,blob.size,expectedType);
+ const url=URL.createObjectURL(blob),im=document.createElement('img');im.className='pageimg';im.alt=item.name||'';im.dataset.objectUrl=url;im.style.transform=`scale(${zoom})`;
+ try{
+  await new Promise((resolve,reject)=>{
+   let settled=false,fallbackTried=false;
+   const timer=setTimeout(()=>finish(Error('JPEGの読み込みがタイムアウトしました：'+(item.name||'ページ'))),12000);
+   function finish(err){if(settled)return;settled=true;clearTimeout(timer);im.onload=null;im.onerror=null;err?reject(err):resolve()}
+   function tryDataUrl(){
+    if(fallbackTried||settled)return;fallbackTried=true;
+    const reader=new FileReader();
+    reader.onload=()=>{if(settled)return;im.onload=()=>finish();im.onerror=()=>finish(Error('画像をデコードできません：'+(item.name||'ページ')+'（データURLでも失敗）'));im.src=String(reader.result||'')};
+    reader.onerror=()=>finish(Error('画像を読み込めません：'+(item.name||'ページ')+'（読み込み方式の切替にも失敗）'));
+    reader.readAsDataURL(blob);
+   }
+   im.onload=()=>finish();
+   im.onerror=()=>{if(!fallbackTried)tryDataUrl();else finish(Error('画像をデコードできません：'+(item.name||'ページ')+'（データURLでも失敗）'))};
+   im.src=url;
+   if(im.complete&&im.naturalWidth>0)finish();
+  });
+  if(token!==openBookGeneration){URL.revokeObjectURL(url);return null}
+  return im;
+ }catch(e){try{URL.revokeObjectURL(url)}catch(_){};console.error('Image failed to load',item.name,blob.type,blob.size,e);throw e}
 }
 async function renderPage(token=openBookGeneration){
  if(!activeBook||token!==openBookGeneration)return;if(pageObserver){pageObserver.disconnect();pageObserver=null}const body=$('readerBody');body.querySelectorAll('img[data-object-url]').forEach(im=>{try{URL.revokeObjectURL(im.dataset.objectUrl)}catch(_){};im.removeAttribute('src')});body.innerHTML='';body.className='readerbody'+(state.layout==='scroll'?' scrollmode':'');
