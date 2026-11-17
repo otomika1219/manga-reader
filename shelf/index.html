@@ -179,9 +179,12 @@ async function importFiles(list){
   const incoming=await filesToBooks(list);
   if(!incoming.length){notify('対応ファイルが見つかりません');return}
   const existing=await dbAll();let added=0,skipped=0;const addedIds=[];
+  const allowDuplicateCopy=new URLSearchParams(location.search).get('reimport')==='1';
   for(const b of incoming){
    let duplicate=false;
-   for(const old of existing){if(await sameBookContent(old,b)){duplicate=true;break}}
+   if(!allowDuplicateCopy){
+    for(const old of existing){if(await sameBookContent(old,b)){duplicate=true;break}}
+   }
    if(duplicate){skipped++;continue}
    await dbPut(b);
    existing.push(b);addedIds.push(b.id);added++;
