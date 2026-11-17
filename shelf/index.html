@@ -319,7 +319,17 @@ async function renderOne(idx,scaleOverride,token=openBookGeneration){
     if(fallbackTried||settled)return;fallbackTried=true;
     const reader=new FileReader();
     reader.onload=()=>{if(settled)return;im.onload=()=>finish();im.onerror=()=>finish(Error('画像をデコードできません：'+(item.name||'ページ')+'（データURLでも失敗）'));im.src=String(reader.result||'')};
-    reader.onerror=()=>finish(Error('画像を読み込めません：'+(item.name||'ページ')+'（読み込み方式の切替にも失敗）'));
+    reader.onerror=async()=>{
+     if(settled)return;
+     try{
+      const buffer=await blob.arrayBuffer();if(settled)return;
+      const bytes=new Uint8Array(buffer);let binary='';const chunk=0x8000;
+      for(let i=0;i<bytes.length;i+=chunk)binary+=String.fromCharCode(...bytes.subarray(i,i+chunk));
+      const type=blob.type||expectedType||'application/octet-stream';
+      im.onload=()=>finish();im.onerror=()=>finish(Error('画像をデコードできません：'+(item.name||'ページ')+'（代替読み込みも失敗、形式='+type+'、サイズ='+bytes.length+' bytes）'));
+      im.src='data:'+type+';base64,'+btoa(binary);
+     }catch(err){finish(Error('画像を読み込めません：'+(item.name||'ページ')+'（読み込み方式の切替にも失敗：'+(reader.error&&reader.error.name||'FileReaderError')+'、Blob読込='+((err&&err.name)||'失敗')+'、形式='+(blob.type||'不明')+'、サイズ='+blob.size+' bytes）'))}
+    };
     reader.readAsDataURL(blob);
    }
    im.onload=()=>finish();
