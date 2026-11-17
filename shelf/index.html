@@ -115,19 +115,20 @@ function itemBlob(it){if(it.bytes)return new Blob([it.bytes],{type:it.type||mime
 async function filesToBooks(fileList){
  const fs=Array.from(fileList||[]);if(!fs.length)return [];
  const out=[], imageFiles=fs.filter(isImage), archives=fs.filter(isArchive), pdfs=fs.filter(isPdf), unsupported=fs.filter(f=>!isImage(f)&&!isArchive(f)&&!isPdf(f));
- // Convert File objects to ordinary Blob data and never store File references in IndexedDB.
- // Keep selected files as Blob objects instead of loading every file into memory at once.
- function storedBytes(f){return f.slice(0,f.size,fileType(f))}
+ // iOS Safari can lose access to File-backed Blobs stored in IndexedDB (NotFoundError).
+ // Store folder-selected image files as ArrayBuffers; create a Blob only for the page being rendered.
+ async function storedImageBytes(f){return await f.arrayBuffer()}
+ function storedBlob(f){return f.slice(0,f.size,fileType(f))}
  function fileType(f){return f.type||(/\.pdf$/i.test(f.name)?'application/pdf':(/\.(jpe?g)$/i.test(f.name)?'image/jpeg':(/\.png$/i.test(f.name)?'image/png':(/\.webp$/i.test(f.name)?'image/webp':'application/octet-stream'))))}
  const folderMode=fs.some(f=>f.webkitRelativePath);
  if(folderMode){
    const groups=new Map();
    imageFiles.forEach(f=>{const path=f.webkitRelativePath||f.name;const parts=path.split('/');const group=parts.length>2?parts.slice(0,-1).join('/'):parts[0]||'画像';if(!groups.has(group))groups.set(group,[]);groups.get(group).push(f)});
-   for(const [name,arr] of groups){arr.sort((a,b)=>natural(a.name,b.name));const items=[];for(const f of arr)items.push({name:f.name,blob:storedBytes(f),type:fileType(f)});out.push(makeBook(name.split('/').pop(),'images',items));}
+   for(const [name,arr] of groups){arr.sort((a,b)=>natural(a.name,b.name));const items=[];for(const f of arr)items.push({name:f.name,bytes:await storedImageBytes(f),type:fileType(f)});out.push(makeBook(name.split('/').pop(),'images',items));}
  } else if(imageFiles.length){
-   imageFiles.sort((a,b)=>natural(a.name,b.name));const items=[];for(const f of imageFiles)items.push({name:f.name,blob:storedBytes(f),type:fileType(f)});out.push(makeBook(imageFiles.length===1?safeName(imageFiles[0].name):'画像まとめ','images',items));
+   imageFiles.sort((a,b)=>natural(a.name,b.name));const items=[];for(const f of imageFiles)items.push({name:f.name,bytes:await storedImageBytes(f),type:fileType(f)});out.push(makeBook(imageFiles.length===1?safeName(imageFiles[0].name):'画像まとめ','images',items));
  }
- for(const f of archives)out.push(makeBook(safeName(f.name),'archive',[{name:f.name,blob:storedBytes(f),type:fileType(f)}]));
+ for(const f of archives)out.push(makeBook(safeName(f.name),'archive',[{name:f.name,blob:storedBlob(f),type:fileType(f)}]));
  for(const f of pdfs)out.push(makeBook(safeName(f.name),'pdf',[{name:f.name,blob:storedBytes(f),type:fileType(f)}]));
  if(unsupported.length)notify('未対応のファイルを'+unsupported.length+'件スキップしました');
  return out;
@@ -145,14 +146,16 @@ function itemByteLength(item){
  if(item.blob instanceof Blob)return item.blob.size;
  return 0;
 }
-async function sameBookContent(a,b){
+function sameBookShape(a,b){
  if(a.type!==b.type||a.name!==b.name)return false;
  const aa=(a.items||[]).slice().sort((x,y)=>natural(x.name,y.name)),bb=(b.items||[]).slice().sort((x,y)=>natural(x.name,y.name));
  if(aa.length!==bb.length)return false;
- // Compare names and byte sizes first; only read file contents when these quick checks match.
- for(let i=0;i<aa.length;i++){
-  if(aa[i].name!==bb[i].name||itemByteLength(aa[i])!==itemByteLength(bb[i]))return false;
- }
+ for(let i=0;i<aa.length;i++)if(aa[i].name!==bb[i].name||itemByteLength(aa[i])!==itemByteLength(bb[i]))return false;
+ return true;
+}
+async function sameBookContent(a,b){
+ if(!sameBookShape(a,b))return false;
+ const aa=(a.items||[]).slice().sort((x,y)=>natural(x.name,y.name)),bb=(b.items||[]).slice().sort((x,y)=>natural(x.name,y.name));
  try{
   for(let i=0;i<aa.length;i++){
    const x=await itemBytesForCompare(aa[i]),y=await itemBytesForCompare(bb[i]);
@@ -161,7 +164,6 @@ async function sameBookContent(a,b){
   }
   return true;
  }catch(e){
-  // A previously stored Safari Blob may be unreadable. Do not block re-importing a fresh copy.
   console.warn('既存漫画データの重複確認に失敗しました。新しいコピーとして追加します。',e);
   return false;
  }
@@ -178,12 +180,22 @@ async function importFiles(list){
   notify('漫画を取り込んでいます…');
   const incoming=await filesToBooks(list);
   if(!incoming.length){notify('対応ファイルが見つかりません');return}
-  const existing=await dbAll();let added=0,skipped=0;const addedIds=[];
-  const allowDuplicateCopy=new URLSearchParams(location.search).get('reimport')==='1';
-  for(const b of incoming){
-   let duplicate=false;
-   if(!allowDuplicateCopy){
-    for(const old of existing){if(await sameBookContent(old,b)){duplicate=true;break}}
+  const existing=await dbAll();let added=0,skipped=0,repaired=0;const addedIds=[];
+   const allowDuplicateCopy=new URLSearchParams(location.search).get('reimport')==='1';
+   for(const b of incoming){
+    if(allowDuplicateCopy){
+     let target=-1;
+     for(let i=0;i<existing.length;i++)if(sameBookShape(existing[i],b)&&(target<0||(existing[i].added||0)>(existing[target].added||0)))target=i;
+     if(target>=0){
+      const old=existing[target];
+      const fixed={...b,id:old.id,added:old.added||b.added,page:old.page||0,direction:old.direction||b.direction,layout:old.layout||b.layout,bookmarks:Array.isArray(old.bookmarks)?old.bookmarks:[],lastRead:old.lastRead||0,coverIndex:old.coverIndex||0,progress:old.progress||0,favorite:!!old.favorite,total:b.items.length};
+      await dbPut(fixed);existing[target]=fixed;addedIds.push(fixed.id);repaired++;continue;
+     }
+    }
+    let duplicate=false;
+    if(!allowDuplicateCopy){for(const old of existing){if(await sameBookContent(old,b)){duplicate=true;break}}}
+    if(duplicate){skipped++;continue}
+    await dbPut(b);existing.push(b);addedIds.push(b.id);added++;
    }
    if(duplicate){skipped++;continue}
    await dbPut(b);
@@ -200,7 +212,7 @@ async function importFiles(list){
   const reading=books.filter(b=>b.lastRead).sort((a,b)=>b.lastRead-a.lastRead);
   $('continueSection').classList.toggle('hidden',!reading.length);
   renderShelf($('continueShelf'),reading.slice(0,3));
-  showModal(`<h2>追加結果の確認</h2><p style="font-size:16px;line-height:1.8">✅ 保存処理が完了しました。</p><div style="background:var(--panel2);border-radius:12px;padding:14px;line-height:2"><div>新しく追加：<strong>${added}冊</strong></div><div>重複のためスキップ：<strong>${skipped}冊</strong></div><div>本棚の合計：<strong>${books.length}冊</strong></div></div><p class="notice">追加した漫画はこのiPhoneのブラウザ内に保存されています。重複した漫画は二重登録していません。</p><div class="modalrow"><button id="importDone" class="primary">確認して本棚へ</button><button id="importMore">続けて追加</button></div>`);$('importDone').onclick=hideModal;$('importMore').onclick=()=>{hideModal();$('addFiles').click()};
+  showModal(`<h2>追加結果の確認</h2><p style="font-size:16px;line-height:1.8">✅ 保存処理が完了しました。</p><div style="background:var(--panel2);border-radius:12px;padding:14px;line-height:2"><div>新しく追加：<strong>${added}冊</strong></div><div>既存コピーを修復更新：<strong>${repaired}冊</strong></div><div>重複のためスキップ：<strong>${skipped}冊</strong></div><div>本棚の合計：<strong>${books.length}冊</strong></div></div><p class="notice">${allowDuplicateCopy?'復旧モード：同じ漫画があれば既存コピーを更新しました。元の漫画データは削除していません。':'追加した漫画はこのiPhoneのブラウザ内に保存されています。重複した漫画は二重登録していません。'}</p><div class="modalrow"><button id="importDone" class="primary">確認して本棚へ</button><button id="importMore">続けて追加</button></div>`);$('importDone').onclick=hideModal;$('importMore').onclick=()=>{hideModal();$('addFiles').click()};
  }catch(e){
   console.error('漫画の保存に失敗:',e);
   const detail=(e&&((e.name?e.name+': ':'')+e.message))||'原因不明';
@@ -277,7 +289,7 @@ function releasePdfResources(){
 async function materializePages(b,token){
  if(token!==openBookGeneration)return false;
  pages=[];releasePdfResources();
- if(b.type==='images'){pages=b.items.map((it,i)=>({name:it.name,blob:itemBlob(it),index:i}));return token===openBookGeneration}
+ if(b.type==='images'){pages=b.items.map((it,i)=>({name:it.name,blob:it.blob||null,bytes:it.bytes||null,type:it.type,index:i}));return token===openBookGeneration}
  if(b.type==='archive'){
   const file=itemBlob(b.items[0]);
   if(!window.JSZip)throw Error('ZIPライブラリが未読み込みです。ネット接続中に開き直してください');
@@ -317,8 +329,8 @@ async function renderOne(idx,scaleOverride,token=openBookGeneration){
  const item=pages[idx];if(!item||token!==openBookGeneration)return null;
  const doc=pdfDoc;
  if(doc){const p=await doc.getPage(idx+1);if(token!==openBookGeneration)return null;const v=p.getViewport({scale:(scaleOverride||1.5)*zoom});const c=document.createElement('canvas');c.width=v.width;c.height=v.height;const ctx=c.getContext('2d');await p.render({canvasContext:ctx,viewport:v}).promise;if(token!==openBookGeneration)return null;return c}
- let blob=item.blob;if(!(blob instanceof Blob)&&item.bytes){try{blob=new Blob([item.bytes],{type:item.type||mime(item.name)})}catch(_){blob=null}}
- if(!(blob instanceof Blob)||!blob.size)throw Error('画像データを読み込めません：'+(item.name||'ページ'));
+ let blob=item.bytes?new Blob([item.bytes],{type:item.type||mime(item.name)}):item.blob;
+  if(!(blob instanceof Blob)||!blob.size)throw Error('画像データを読み込めません：'+(item.name||'ページ'));
  const expectedType=mime(item.name);if((!blob.type||blob.type==='application/octet-stream')&&expectedType!=='application/octet-stream')blob=blob.slice(0,blob.size,expectedType);
  const url=URL.createObjectURL(blob),im=document.createElement('img');im.className='pageimg';im.alt=item.name||'';im.dataset.objectUrl=url;im.style.transform=`scale(${zoom})`;
  try{
