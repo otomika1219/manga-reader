@@ -297,13 +297,19 @@ async function materializePages(b,token){
  }
  if(b.type==='pdf'){
   const lib=window.__pdfjs;if(!lib)throw Error('PDF機能の読み込み中です。数秒後にもう一度お試しください');
-  const sourceBlob=itemBlob(b.items[0]);if(!sourceBlob)throw Error('PDFデータを読み込めません');
-  // iOS Safari can fail to fetch a Blob URL through PDF.js with response status 0.
-  // Read only the currently opened PDF into memory; do not convert the whole bookshelf.
+  const sourceItem=b.items[0],sourceBlob=itemBlob(sourceItem);if(!sourceBlob)throw Error('PDFデータを読み込めません');
+  // iOS Safari may intermittently lose access to File-backed Blobs in IndexedDB.
+  // Once a PDF can be read successfully, persist its bytes so later opens do not rely on that Blob.
   let pdfData;
   try{
    pdfData=new Uint8Array(await sourceBlob.arrayBuffer());
    if(token!==openBookGeneration)return false;
+   if(!sourceItem.bytes){
+    b.items[0]={...sourceItem,blob:null,bytes:pdfData.buffer.slice(0),type:sourceItem.type||'application/pdf'};
+    await dbPut(b);
+    if(token!==openBookGeneration)return false;
+    const shelfIndex=books.findIndex(x=>x.id===b.id);if(shelfIndex>=0)books[shelfIndex]=b;
+   }
    const loadedDoc=await lib.getDocument({data:pdfData}).promise;
    if(token!==openBookGeneration){try{loadedDoc.destroy()}catch(_){}return false}
    pdfDoc=loadedDoc;
