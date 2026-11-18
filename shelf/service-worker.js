@@ -1,4 +1,4 @@
-const CACHE='manga-shelf-shell-v66';
+const CACHE='manga-shelf-shell-v67';
 const SHELL=['./','./index.html','./manifest.json','./icon.svg'];
 self.addEventListener('install',event=>{
  event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting()));
