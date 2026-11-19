@@ -68,7 +68,7 @@ if(new URLSearchParams(location.search).get('repair')==='1'){
 <div class="readerfoot"><button id="prevPage">‹ 前へ</button><span class="counter" id="pageCounter">0 / 0</span><button id="nextPage">次へ ›</button><input id="pageSlider" type="range" min="0" max="0" value="0" aria-label="ページ移動"><div class="readeropts"><select id="direction"><option value="rtl">右開き</option><option value="ltr">左開き</option></select><select id="layout"><option value="single">1ページ</option><option value="spread">見開き</option><option value="scroll">縦スクロール</option></select><button id="zoomOut">－</button><button id="zoomIn">＋</button><button id="readerMenu">その他</button><button id="fullscreenToggle">全画面</button></div></div>
 </div>
 <div id="modalBack" class="modalback hidden"><div class="modal" id="modal"></div></div><div id="toast" class="toast hidden"></div>
-<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs" type="module"></script>
 <script type="module">
 import * as pdfjsLib from 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs';
@@ -84,6 +84,19 @@ let networkMode=localStorage.getItem('manga-shelf-network-mode')||'online';
 function applyNetworkMode(){const off=networkMode==='offline';const status=$('offlineStatus');if(status)status.textContent=off?'オフラインモード：端末内の漫画を読む・追加する操作ができます。アプリ更新にはオンラインモードが必要です。':'オンラインモード：端末内の漫画を読む・追加できます。アプリ更新はネット接続中に行ってください。';const onBtn=$('onlineMode'),offBtn=$('offlineMode');if(onBtn){onBtn.classList.toggle('primary',!off);onBtn.setAttribute('aria-pressed',String(!off))}if(offBtn){offBtn.classList.toggle('primary',off);offBtn.setAttribute('aria-pressed',String(off))}}
 const DB_NAME='manga-shelf-db-v1', STORE='books';
 let db, dbReady=null, books=[], activeBook=null, page=0, pages=[], zoom=1, pdfDoc=null, pdfObjectUrl=null, activeTab='shelf', toastTimer, selectionMode=false, pageObserver=null, lastReaderScrollAt=0, scrollLoadQueue=[], scrollLoadsActive=0;
+let zipLibraryPromise=null;
+function ensureZipLibrary(){
+ if(window.JSZip)return Promise.resolve(window.JSZip);
+ if(zipLibraryPromise)return zipLibraryPromise;
+ zipLibraryPromise=new Promise((resolve,reject)=>{
+  const script=document.createElement('script');
+  script.src='https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js';
+  script.onload=()=>window.JSZip?resolve(window.JSZip):reject(new Error('ZIPライブラリを初期化できません'));
+  script.onerror=()=>{zipLibraryPromise=null;reject(new Error('ZIPを開くには、オンラインで一度ライブラリを読み込む必要があります'))};
+  document.head.appendChild(script);
+ });
+ return zipLibraryPromise;
+}
 const selectedBookIds=new Set();
  let shelfSort=localStorage.getItem('manga-shelf-sort')||'added';
  let shelfQuery='',favoritesOnly=false;
@@ -300,8 +313,8 @@ async function materializePages(b,token){
  if(b.type==='images'){pages=b.items.map((it,i)=>({name:it.name,blob:it.blob||null,bytes:it.bytes||null,type:it.type,index:i}));return token===openBookGeneration}
  if(b.type==='archive'){
   const file=itemBlob(b.items[0]);
-  if(!window.JSZip)throw Error('ZIPライブラリが未読み込みです。ネット接続中に開き直してください');
-  const zip=await JSZip.loadAsync(file);if(token!==openBookGeneration)return false;const entries=Object.values(zip.files).filter(x=>!x.dir&&!x.name.split('/').pop().startsWith('._')&&!x.name.split('/').includes('__MACOSX')&&/\.(jpe?g|png|gif|webp|avif|bmp)$/i.test(x.name)).sort((a,b)=>natural(a.name,b.name));
+  const ZipLibrary=await ensureZipLibrary();if(token!==openBookGeneration)return false;
+   const zip=await ZipLibrary.loadAsync(file);if(token!==openBookGeneration)return false;const entries=Object.values(zip.files).filter(x=>!x.dir&&!x.name.split('/').pop().startsWith('._')&&!x.name.split('/').includes('__MACOSX')&&/\.(jpe?g|png|gif|webp|avif|bmp)$/i.test(x.name)).sort((a,b)=>natural(a.name,b.name));
   for(const ent of entries){const blob=await ent.async('blob');if(token!==openBookGeneration)return false;pages.push({name:ent.name,blob:blob.type?blob:new Blob([blob],{type:mime(ent.name)}),index:pages.length})}
   b.total=pages.length;if(token!==openBookGeneration)return false;if(!pages.length)throw Error('ZIP内に画像がありません');return true
  }
